@@ -3,7 +3,7 @@ an interactive web viewer for reference pangenome graphs
 
 
 # Description  
-VRPG is an interactive web viewer for pangenome graph. It supports reference Graph Fragment Assembly format, which is taken by minigraph. It can be used to scan the large and complex pangenome graph with many assemblies. The reference nodes stand in the middle of view windows in one line and are encompassed by non-reference nodes. It’s benefit to check the structure variations. A website shipping Saccharomyces cerevisiae pangenome graph with 163 assemblies and Homo sapiens pangenome graph with 90 assemblies can be visited at https://www.evomicslab.org/app/vrpg/. Users can also deploy the web application and view their own data by themselves.  
+VRPG is an interactive web viewer for pangenome graph. It supports reference Graph Fragment Assembly format, which is taken by minigraph. It can be used to scan the large and complex pangenome graph with many assemblies. The reference nodes stand in one line in the middle of view windows and are encompassed by non-reference nodes. It’s beneficial to check the structure variations. A website shipping Saccharomyces cerevisiae pangenome graph with 163 assemblies and Homo sapiens pangenome graph with 90 assemblies can be visited at https://www.evomicslab.org/app/vrpg/. Users can also deploy the web application and view their own data by themselves.  
 
 # Installation  
 Python3 (>=3.6) and pip environment are required.  
