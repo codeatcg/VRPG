@@ -34,7 +34,7 @@ sample3#2	sample3.2.gaf
 Run the following command to create pangenome graph and generate files required by VRPG.  
 
 ```
-Python vrpg_preprocess.py –minigraph ‘/software/minigraph’ -assList ass_file.list –outDir out_folder  
+Python vrpg_preprocess.py –-minigraph ‘/software/minigraph’ --assList ass_file.list –-outDir out_folder  
 ```
 
 ### ass_file.list file is formatted as follows:  
