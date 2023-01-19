@@ -1,0 +1,429 @@
+
+
+<!DOCTYPE html>
+{% load static %}
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+
+        <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
+        <script src="https://cdn.staticfile.org/popper.js/1.15.0/umd/popper.min.js"></script>
+        <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.min.js"></script>
+        <script src="https://d3js.org/d3.v6.min.js"></script>
+        
+        <script src="http://cdn.jsdelivr.net/g/filesaver.js"></script>
+    </head>
+    
+    <body>
+    
+        <div class="describe pt-3 ml-1" style="background-color:#F8F9F9">
+            <a href="/app/vrpg/yeast/">
+                <img src="{% static 'images/vrpg.svg' %}" alt="VRPG" width="10%" height="10%"/>
+            </a>
+            <span class="getHeader" style="color:#87CEEB; font-size:30px; font-family:Impact; text-align:center; vertical-align:middle">
+                &nbsp;&nbsp;&nbsp;&nbsp;VRPG: an interactive web viewer for reference pangenome graphs
+            </span>
+        </div>
+        
+        <hr color="#F5F5F5" size=1>
+        
+        
+        <div style="margin-top:10px; margin-left:100px; margin-right:100px">
+            <div class="form-inline">
+                <select id="chrName" class="form-control" style="width:100px"></select>
+                
+                <input id="startPos" value="1" type="number" min="1" class="form-control ml-2" style="width:150px">
+                <span class="mx-2">-</span>
+                <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:150px">
+                
+                <button id="go" class="btn btn-primary  ml-2">Go</button>
+                <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.png' %}"></img></button>
+                <button id="mright" class="btn"><img src="{% static 'images/arrowRight3.png' %}"></img></button>
+                
+                <button id="zoomIn" class="btn"><img src="{% static 'images/zoomIn2.png' %}"></img></button>
+                <button id="zoomOut" class="btn mr-2"><img src="{% static 'images/zoomOut2.png' %}"></img></button>
+                
+                <label class="ml-5" for="ass">Highlight</label>
+                <select id="ass" class="form-control ml-1" style="width:150px"></select>
+                
+                <button id="savePlot" class="btn btn-primary ml-4">Save Image (*.svg)</button>
+            </div>
+            
+            <div id="Range"></div>
+            <!--<div class="row mt-2">-->
+            <style>
+            .grid-container {
+                display: grid;
+                grid-template-columns: 1000px 20px 300px;
+                
+            }
+            </style>
+            <div class="grid-container mt-2">
+                <div class="item1" style="border:1px solid lightgray; height:600px;">
+                    <div>
+                        <svg width="1000" height="600">
+                    </div>
+                </div>
+                
+                <div class="item2">
+                
+                </div>
+                
+                <div class="item3" style="border:1px solid lightgray; height:600px">
+                    <div>
+                        <div id='nodeInfo' style="height:600px; width:300px; overflow:auto">
+                            <p style="color:gray; margin-top:290px">Click the node in left box to get the information about it.<p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <br><br><br><br><br><br><br><br><br><br><br><br><br>
+        
+        <script>
+        var simulation;
+        function graph(drawData){
+        
+            var width = 1000;
+            var height = 600;
+
+            simulation = d3.forceSimulation(drawData.nodes)
+                .force('charge', d3.forceManyBody().strength(-50))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('link', d3.forceLink().links(drawData.links))
+                .on('tick', ticked);
+            
+            groups = _.uniq(_.map(drawData.nodes,d=>d.group));
+            //
+            groupData = _.groupBy(drawData.nodes,d=>d.group);
+            
+            genome = _.uniq(drawData.genome);
+            
+            
+            var colors = d3.scaleOrdinal(genome,d3.quantize(d3.interpolateRainbow,genome.length+1));
+            
+            var svg = d3.select("svg").attr("viewBox",[0,0,width,height]);
+            var svg2 = svg.append("g");
+                    
+            
+            var d_edge = svg2.append('g')
+                        .selectAll('path')
+                        .data(drawData.links)
+                        .join('path')
+                        .attr('stroke','#A6ACAF')
+                        .attr('fill','none')
+                        .attr('class',d=>{return 's_' + d.source.id + '_' + d.target.id + '_' + d.type})
+                        //
+                        .on('click',e=>{var value = d3.select(e.target).attr('stroke');
+                            if(value == 'red'){d3.select(e.target).attr('stroke','#A6ACAF')}else{d3.select(e.target).attr('stroke','red')};
+                         });           
+            
+            for (let h of drawData.hLinks){
+                console.log(h)
+                d3.select(`.s_${h}`).attr('stroke','red')
+            }
+            
+            var preEvent="";
+            var d_nodeLink = svg2.append('g')
+                        .selectAll('path')
+                        .data(groups)
+                        .join('path')
+                        //
+                        .style('stroke',d=>colors(drawData.genome[d]))
+                        .style('stroke-width',10)
+                        .style('stroke-opacity',0.3)
+                        .style('fill','none')
+                        .attr('stroke-linejoin','round')
+                        .on('click',function(e,d){
+                            if(preEvent != ""){
+                                d3.select(preEvent.target).style('stroke-width',10);
+                            }
+                            d3.select(e.target).style('stroke-width',20);
+                            preEvent = e;
+                            segAnno(d)}
+                        );
+            
+            var d_hnLink = svg2.append('g')
+                        .selectAll('path')
+                        .data(drawData.hnGroup)
+                        .join('path')
+                        .style('stroke','red')
+                        .style('stroke-width',2)
+                        .style('stroke-dasharray',('3','3'))
+                        .style('fill','none')
+                        .attr('stroke-linejoin','round');
+            
+            function segAnno(d){
+                var seg = drawData.nnames[d];
+                var fData = new FormData();
+                //
+                fData.append('seg',seg);
+                var csrfToken = $("[name='csrfmiddlewaretoken']").val();
+                fData.append('csrfmiddlewaretoken',csrfToken);
+                
+                $.ajax({
+                    url: "/app/vrpg/nodeInfo/",
+                    type: "POST",
+                    data: fData,
+                    contentType: false,
+                    processData: false,
+                
+                    beforeSend: function(){
+                        $('#nodeInfo').html("")
+                    },
+                    
+                    success: function(data){
+                        var nodeHtml = "<h6>Segment Name:</h6>"; 
+                        nodeHtml += `<p>${seg}</p>`;
+                        nodeHtml += "<h6>Segment Source:</h6>";
+                        nodeHtml += `<p>Assembly: ${data.nodeAss}<br>Chr: ${data.nodeChr}<br>Start: ${data.nodeStart}<br>End: ${data.nodeEnd}<br></p>`;
+                        nodeHtml += "<h6>Segment presence/absence status:</h6>";
+                        nodeHtml += "<table class='table table-striped'>";
+                        nodeHtml += "<thead><tr>";
+                        nodeHtml += `<th>Assembly</th>`;
+                        nodeHtml +=`<th>Depth</th>`;
+                        nodeHtml += "</tr></thead>";
+                        nodeHtml += "<tbody>";
+                        for(let k in data.ass){
+                            nodeHtml += `<tr><td>${data.ass[k]}</td><td>${data.cov[k]}</td></tr>`;
+                        }
+                        nodeHtml += "</tbody>";
+                        nodeHtml += "</table>";
+                        
+                        $('#nodeInfo').html(nodeHtml);
+                    }
+                });
+            }
+
+            function zoomed(e){
+                    svg2.attr("transform",e.transform);
+            };
+            
+            zoomFun = d3.zoom()
+                       .extent([[0,0],[width,height]])
+                       .scaleExtent([0.01,100])
+                       .on("zoom",zoomed);
+                       
+            svg.call(zoomFun);
+                       
+            $('#zoomIn').on("click",function(){
+                svg.transition().call(zoomFun.scaleBy,2);
+            });
+            
+            $('#zoomOut').on("click",function(){
+                svg.transition().call(zoomFun.scaleBy,0.5);
+            });
+
+            function ticked(){
+                var k = 50;       
+                d_edge.attr('d',d=>{var path = d3.path();
+            
+                    switch(+d.type){
+                        case 1:
+                            path.moveTo(d.source.x,d.source.y);
+                            path.lineTo(d.target.x,d.target.y);
+                            break;
+                        case 2:
+                            path.moveTo(d.source.x,d.source.y);
+                            path.bezierCurveTo(d.source.x+k,d.source.y+k,d.target.x-k,d.target.y+k,d.target.x,d.target.y);
+                            break;
+                        case 3:
+                            path.moveTo(d.source.x,d.source.y);
+                            path.bezierCurveTo(d.source.x+k,d.source.y+k,d.target.x+k,d.target.y+k,d.target.x,d.target.y);
+                            break;
+                        case 4:
+                            path.moveTo(d.source.x,d.source.y);
+                            path.bezierCurveTo(d.source.x-k,d.source.y-k,d.target.x-k,d.target.y-k,d.target.x,d.target.y);
+                            break; 
+                        case 5:
+                            path.moveTo(d.source.x,d.source.y);
+                            path.bezierCurveTo(d.source.x-k,d.source.y-k,d.target.x+k,d.target.y-k,d.target.x,d.target.y);
+                            break;
+                            
+                    }
+                    return path;
+                });
+            
+                d_nodeLink.attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
+                    return(d3.line()(groupPoint))
+                });
+                
+                d_hnLink.attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
+                    return(d3.line()(groupPoint))
+                });
+                
+                //simulation.stop();
+            }
+        }
+
+        function plotGraph(){
+            var fData = new FormData();
+            fData.append('tchr',$('#chrName').val());
+            fData.append('start',$('#startPos').val());
+            fData.append('end',$('#endPos').val());
+            fData.append('ass',$('#ass').val());
+            
+            var csrfToken = $("[name='csrfmiddlewaretoken']").val();
+            fData.append('csrfmiddlewaretoken',csrfToken);
+            
+            $.ajax({
+                url: "/app/vrpg/move/",
+                type: "POST",
+                data: fData,
+                contentType: false,
+                processData: false,
+            
+                beforeSend: function(){
+                    $('svg').html("")
+                },
+                
+                success: function(data){
+                    graph(data);
+                }
+            });
+        }
+        
+        function chrOpt(chrList){
+            chrHtml = "";
+            for(let name of chrList){
+                chrHtml += `<option value=${name}>${name}</option>`;
+            }
+            $('#chrName').html(chrHtml);
+        }
+        
+        function assOpt(assList){
+            assHtml = "<option value='0'></option>";
+            for(let name of assList){
+                assHtml += `<option value=${name}>${name}</option>`;
+            }
+            $('#ass').html(assHtml);
+        }
+        
+        function initGraph(){
+            var fData = new FormData();
+            var csrfToken = $("[name='csrfmiddlewaretoken']").val();
+            fData.append('csrfmiddlewaretoken',csrfToken);
+            $.ajax({
+                url: "/app/vrpg/init/",
+                type: "POST",
+                data: fData,
+                contentType: false,
+                processData: false,
+            
+                beforeSend: function(){
+                    $('svg').html("")
+                },
+                
+                success: function(data){
+                    
+                    chrOpt(data.nameList);
+                    assOpt(data.ass);
+                    graph(data);
+                }
+            });
+        }
+        
+        function checkValue(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(pend < pstart){
+                $('#Range').html('<p style="color:red">Error! The start coordinate must be smaller than the end coordinate!</p>');
+            }else{
+                if(dis > 1000000){
+                    $('#Range').html('<p style="color:red">Warning! The chromosome interval to view is too wide!</p>');
+                }else{
+                    $('#Range').html('');
+                }
+            }
+        }
+        
+        $(function(){
+            initGraph();
+        });
+        
+        $('#go').on("click",function(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= 1000000){
+                simulation.stop();
+                plotGraph();
+            }
+        });
+        
+        $('#ass').on("change",function(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= 1000000){
+                simulation.stop();
+                plotGraph();
+            }
+        });
+        
+        $('#startPos').on("change",function(){
+            checkValue();
+        });
+        
+        $('#endPos').on("change",function(){
+           checkValue();
+        });
+        
+        $('#mleft').on("click",function(){
+            simulation.stop();
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= 1000000){
+                var tstart = pstart - 500 > 0 ? pstart - 500 : 1;
+                var tend = pend - 500 < 500 ? 500 : pend - 500;
+                
+                $('#startPos').val(tstart.toString());
+                $('#endPos').val(tend.toString());
+                plotGraph();
+            }
+        });
+        
+        $('#mright').on("click",function(){
+            simulation.stop();
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= 1000000){
+                var tstart = pstart + 500;
+                var tend = pend + 500;
+
+                $('#startPos').val(tstart.toString());
+                $('#endPos').val(tend.toString());
+                plotGraph();
+            }
+        });
+        
+        function saveIm(){
+            var html = d3.select("svg")
+                         .attr("version","1.1")
+                         .attr("xmlns","http://www.w3.org/2000/svg")
+                         .node().parentNode.innerHTML;
+            var blob = new Blob([html],{type:"image/svg+xml"});
+            saveAs(blob,"panGraph.svg");
+        }
+        
+        $('#savePlot').on('click',function(){
+            saveIm();
+        })
+        
+    </script>
+
+    </body>
+</html>
+
+
+
+
