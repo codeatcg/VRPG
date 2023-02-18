@@ -6,16 +6,15 @@ an interactive web viewer for reference pangenome graphs
 </p>
 
 # Description  
-VRPG is an interactive web viewer for pangenome graph. It supports reference Graph Fragment Assembly format, which is taken by minigraph. It can be used to scan the large and complex pangenome graph with many assemblies. The reference nodes stand in one line in the middle of view windows and are encompassed by non-reference nodes. It’s beneficial to check the structure variations. A website shipping Saccharomyces cerevisiae pangenome graph with 163 assemblies and Homo sapiens pangenome graph with 90 assemblies can be visited at https://www.evomicslab.org/app/vrpg/. Users can also deploy the web application and view their own data by themselves.  
+VRPG is an interactive web viewer for pangenome graph. It supports reference Graph Fragment Assembly format, which is taken by minigraph. It can be used to scan the large and complex pangenome graph with many assemblies. The reference nodes stand in one line in the middle of view windows and are encompassed by non-reference nodes. It’s beneficial to check the structure variations. A website shipping a whole Saccharomyces cerevisiae pangenome graph with 163 assemblies and a whole Homo sapiens pangenome graph with 90 assemblies is available at https://www.evomicslab.org/app/vrpg/. Users can also deploy the web application and view their own data by themselves.  
 
-**Note:** the released version 0.1.0 is not the latest. For new version part of the backend was rewritten in C++. Besides, we indexed the whole pangenome graph for rapid access. All this improved the response time of the server, significantly. Now for scanning the Homo sapiens pangenome graph with 90 assemblies the server response time is at millisecond level. For frontend we added constraint to node size and added a new display mode menu to improve the view.  
+**Note:** the released version 0.1.0 is not the latest. For new version part of the backend was rewritten in C++. Besides, we indexed the whole pangenome graph for rapid access. All this improved the response time of the server, significantly. Now for scanning the Homo sapiens pangenome graph with 90 assemblies the server response time is at millisecond level. For frontend we added constraint to the node size and added a new display mode menu to improve the view.  
 
 # Installation  
 Python3 (>=3.6) and pip environment are required.  
 
 ```
-# For installing historical version (v0.1.0) please access https://github.com/codeatcg/VRPG/releases and download the source code.
-# pip install Django==3.2.4 
+# For installing a historical version (v0.1.0) please access https://github.com/codeatcg/VRPG/releases and download the source code.
 
 # install the latest version
 # gcc >= 4.9
@@ -82,5 +81,6 @@ Please make sure the firewall is closed. Then open <a>http:\<IP of server\>:8000
 
 If you are familiar with nginx or apache you can also deploy VRPG by using any of them.
 
-
+# Tips
+The edge can be highlighted by clicking on it. If you want to remove the highlight just click again.
 
