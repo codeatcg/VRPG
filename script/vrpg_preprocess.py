@@ -5,6 +5,11 @@ import re
 import os
 import gzip
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"module"))
+
+import minipg
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--sep',help="delimiter between sample and haplotype names, by default: '#'",default="#")
@@ -18,6 +23,9 @@ parser.add_argument('--minigraph',help="The absolute file path of minigraph exec
 parser.add_argument('--assList',help="Input assembly file list. When rGFA file does not exist this option can be taken to build the reference pangenome graph",default=None)
 parser.add_argument('--thread',help="Threads of minigraph running, by default: 10",type=int,default=10)
 parser.add_argument('--graphOpt',help="minigraph options (except '-cxggs -t') to generate graph, e.g.: '-q 5 -l 100000 -L 50'",default=None)
+
+parser.add_argument('--index',help="index the graph to speed up data visualization",action="store_true",default=False)
+parser.add_argument('--range',help="range size for indexing the graph, by default: 1000000",type=int,default=1000000)
 
 paras = parser.parse_args()
 
@@ -322,7 +330,21 @@ def fromGFA(sep,gfaFile,mapListFile,minMQ,outDir):
     refChrList(sep,nodeFile,chrListFile)
     if mapListFile is not None:
         nodeCov(nodeFile,mapListFile,minMQ,covFile,assListFile,pathFile)
- 
+        
+def indexGraph():
+    nodeFile = os.path.join(upDir,"node.info")
+    edgeFile = os.path.join(upDir,"edge.info")
+    chrListFile = os.path.join(upDir,"chr.list")
+    pathFile = os.path.join(upDir,"path.info")
+    sepFile = os.path.join(upDir,"sep.info")
+    
+    bEdgeFile = os.path.join(upDir,"upload","edge.bw")
+    eIndexFile = os.path.join(upDir,"upload","edge.dx")
+    mp = minipg.GraphRange(nodeFile,edgeFile,pathFile,sepFile,chrListFile,bEdgeFile,eIndexFile)
+    rangeSize = paras.range
+    ex = 1000000
+    mp.edgeWrite(rangeSize,ex)
+    
 def miniMain():
     sep = paras.sep
     gfaFile = paras.rGFA
@@ -340,11 +362,11 @@ def miniMain():
         if assList is not None and minigraph is not None:
             fromScratch(sep,assList,minigraph,graphOpt,thread,minMQ,outDir)
         else:
-            if assList is not None and os.access(minigraph,os.X_OK):
-                fromScratch(sep,assList,minigraph,graphOpt,thread,minMQ,outDir)
-            else:
-                print("Error: lack of parameters!")
-                exit(1)
+            print("Error: lack of parameters!")
+            exit(1)
+    
+    if paras.index:
+        indexGraph()
     
 if __name__ == '__main__':
     miniMain()
