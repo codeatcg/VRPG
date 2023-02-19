@@ -167,9 +167,9 @@ void GraphRange::parseIndex(string &sChr,int sStart,int sEnd,int ex){
                 break;
             }
         }
+        strStream.str("");
+        strStream.clear();
     }
-    strStream.str("");
-    strStream.clear();
     in.close();
     xfh.close();
 }
