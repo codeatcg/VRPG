@@ -4,7 +4,8 @@ an interactive web viewer for reference pangenome graphs
 |  |  |
 | --- | --- |
 | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window2.png" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description3.png" width=400px/> |
- 
+
+Figrue on the left is based on vrpg-v0.1.1 and the path was not highlighted by arrow line. Figrue on the right is picked from drawings by latest version of vrpg.
 
 # Description  
 VRPG is an interactive web viewer for pangenome graph. It was initially designed to navigate the whole pangenome graph in reference Graph Fragment Assembly (rGFA) format. Now graph Graph Fragment Assembly (GFA v1.x) format is also supported. This is implemented by converting the GFA format to a format similar to rGFA. VRPG is fast, even for large and complex pangenome graph with many assemblies. The reference nodes are aligned along the center line of the view windows and encompassed by non-reference nodes. The reference line in the graph holds the stable coordinate system, just the traditional linear reference. It’s beneficial to scan all kinds of variations in the graph and relate them to the traditional knowledge by means of stable coordinates. A website shipping four pangenome graphs (one for yeast and three for human) is available at https://www.evomicslab.org/app/vrpg/. The Saccharomyces cerevisiae pangenome graph was generated with 163 assemblies and The three Homo sapiens pangenome graphs were constructed by <a href="https://humanpangenome.org/">HPRC</a>  by three different pipelines (Minigraph, Minigraph-CACTUS and PGGB). Users can also deploy the web application and view their own data.  
