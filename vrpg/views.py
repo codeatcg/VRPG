@@ -5,20 +5,18 @@ from django.views.decorators.csrf import csrf_exempt
 
 import os
 import re
+#
 from module import minipg
-# Create your views here.
 
 BinDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def index(request):
     return render(request,"vrpg/index.html",{})
-
 
 def showInfo(request):
     return render(request,"vrpg/info.html",{})
     
 def showManual(request):
     return render(request,"vrpg/manual.html",{})       
-
 
 def getSep(sepFile):
     with open(sepFile) as sf:
@@ -48,20 +46,78 @@ def readAss(assFile):
             assList.append(line)
     return assList
 
+def qNodesCov(covFile,nodeVec,covNameFile,ass):
+    assPos = 0
+    pos = 0
+    with open(covNameFile) as af:
+        for line in af:
+            line = line.strip()
+            if line == ass:
+                assPos = pos
+            pos += 1
+    
+    nodeDict = {}
+    nodeSort = sorted(set(nodeVec))
+    nodePos = 0
+    num = len(nodeSort)
+    cov = []
+    flag = False
+    with open(covFile) as cf:
+        for line in cf:
+            line = line.strip()
+            arr = line.split("\t")
+            if nodeSort[nodePos] == int(arr[0]):
+                flag = False
+                if arr[1] != "*":
+                    oneArr = arr[1].split(",")
+                    if len(oneArr) < pos:
+                        for i in oneArr:
+                            if int(i) == assPos:
+                                nodeDict[nodeSort[nodePos]] = 1.00
+                                flag = True
+                                break
+                    else:
+                        nodeDict[nodeSort[nodePos]] = oneArr[assPos]
+                        flag = True
+                
+                if not flag:
+                    if len(arr) > 2:
+                        mDx = arr[2].split(",")
+                        mArr = arr[3].split(",")
+                        for k,x in zip(mDx,mArr):
+                            if int(k) == assPos:
+                                nodeDict[nodeSort[nodePos]] = x
+                                flag = True
+                                break
+                if not flag:
+                    print("Error: node {} may be not in the assembly!".format(nodeSort[nodePos]))
+                    nodeDict[nodeSort[nodePos]] = 0.00
+                nodePos += 1
+            if nodePos == num:
+                break
+                
+    for nd in nodeVec:
+        cov.append(nodeDict[nd])
+    return cov
+
 @csrf_exempt    
 def showGraph(request):
     
     para = request.POST
-    species = para.get("species")
-    nodeFile = os.path.join(BinDir,"upload",species,"node.info")
-    edgeFile = os.path.join(BinDir,"upload",species,"edge.info")
-    chrListFile = os.path.join(BinDir,"upload",species,"chr.list")
-    assListFile = os.path.join(BinDir,"upload",species,"ass.list")
-    pathFile = os.path.join(BinDir,"upload",species,"path.info")
-    sepFile = os.path.join(BinDir,"upload",species,"sep.info")
+
+    upDir = os.path.join(BinDir,"upload")
+
+    bEdgeFile = os.path.join(upDir,"edge.bw")
+    eIndexFile = os.path.join(upDir,"edge.bdx")
+    rNdDxFile = os.path.join(upDir,"node.ref.bdx")
+    rNdFile = os.path.join(upDir,"node.ref.bw")
+    nrNdFile = os.path.join(upDir,"node.nonref.bw")
+    mNdDxFile = os.path.join(upDir,"node.merge.bdx")
+
+    formFile = os.path.join(upDir,"form.info")
+    chrListFile = os.path.join(upDir,"chr.list")
+    assListFile = os.path.join(upDir,"ass.list")
     
-    bEdgeFile = os.path.join(BinDir,"upload",species,"edge.bw")
-    eIndexFile = os.path.join(BinDir,"upload",species,"edge.dx")
     
     sChr = para.get("tchr")
     sStart = int(para.get("start"))
@@ -75,18 +131,27 @@ def showGraph(request):
     ass = para.get("ass")
     chrList = readChr(chrListFile)
     assList = readAss(assListFile)
-    if(os.path.exists(bEdgeFile) and os.path.exists(eIndexFile)):
-        mp = minipg.GraphRange(nodeFile,edgeFile,pathFile,sepFile,chrListFile,bEdgeFile,eIndexFile)
-    else:
-        mp = minipg.GraphRange(nodeFile,edgeFile,pathFile,sepFile)
+    indexFlag = 0
+    if os.path.exists(bEdgeFile) and os.path.exists(eIndexFile) and os.path.exists(rNdDxFile) and os.path.exists(rNdFile) and os.path.exists(nrNdFile) and os.path.exists(mNdDxFile):
+        indexFlag = 1
+    
+    mp = minipg.GraphRange(upDir,indexFlag)
     mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y)
     
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     rNodeNum = len(draw_pos)
-    for i in range(rNodeNum ):
-        draw_node[i]["fx"] = draw_pos[i];
-        draw_node[i]["fy"] = y;
+    
+    layout = para.get("lay")
+    if layout == "co":
+        for i in range(rNodeNum ):
+            draw_node[i]["x"] = draw_pos[i];
+            draw_node[i]["y"] = y;
+            draw_node[i]["fixed"] = '1';
+    else:
+        for i in range(rNodeNum ):
+            draw_node[i]["fx"] = draw_pos[i];
+            draw_node[i]["fy"] = y;
     
     draw_edge = mp.draw_edge
     neStart = rNodeNum - 1
@@ -94,23 +159,40 @@ def showGraph(request):
     for k in dnode_len:
         draw_edge[neStart]["dis"] = k
         neStart += 1
-        
-    graphInfo = {'nodes':draw_node,'links':draw_edge, 'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList}
+    #
+    hnCov = []
+    if ass != "0":
+        if len(mp.hnGroup) > 0:
+            nodeVec = [mp.nnames[x] for x in mp.hnGroup]
+            covFile = os.path.join(upDir,"cover.info")
+            covNameFile = os.path.join(upDir,"ass.list")
+            if os.path.exists(covFile):
+                hnCov = qNodesCov(covFile,nodeVec,covNameFile,ass)
+            else:
+                mm = minipg.QueryNode(upDir)
+                mm.queryAssCov(nodeVec,ass)
+                hnCov = mm.ndCov
+            
+    graphInfo = {'nodes':draw_node,'links':draw_edge, 'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList}
+    
     return JsonResponse(graphInfo)
 
 @csrf_exempt
 def initGraph(request):
     para = request.POST
-    species = para.get("species")
-    nodeFile = os.path.join(BinDir,"upload",species,"node.info")
-    edgeFile = os.path.join(BinDir,"upload",species,"edge.info")
-    chrListFile = os.path.join(BinDir,"upload",species,"chr.list")
-    assListFile = os.path.join(BinDir,"upload",species,"ass.list")
-    pathFile = os.path.join(BinDir,"upload",species,"path.info")
-    sepFile = os.path.join(BinDir,"upload",species,"sep.info")
+
+    upDir = os.path.join(BinDir,"upload")
     
-    bEdgeFile = os.path.join(BinDir,"upload",species,"edge.bw")
-    eIndexFile = os.path.join(BinDir,"upload",species,"edge.dx")
+    bEdgeFile = os.path.join(upDir,"edge.bw")
+    eIndexFile = os.path.join(upDir,"edge.bdx")
+    rNdDxFile = os.path.join(upDir,"node.ref.bdx")
+    rNdFile = os.path.join(upDir,"node.ref.bw")
+    nrNdFile = os.path.join(upDir,"node.nonref.bw")
+    mNdDxFile = os.path.join(upDir,"node.merge.bdx")
+
+    formFile = os.path.join(upDir,"form.info")
+    chrListFile = os.path.join(upDir,"chr.list")
+    assListFile = os.path.join(upDir,"ass.list")
     
     chrList = readChr(chrListFile)
     assList = readAss(assListFile)
@@ -118,8 +200,9 @@ def initGraph(request):
     sChr = chrList["nameList"][0]
     sStart = 1
     sEnd = 10000
-    if species == "Homo_sapiens":
-        sEnd = 50000
+    if os.path.exists(formFile):
+        sEnd = 300
+    
     ex = 1000000
     wStart = 50
     wWidth = 800
@@ -127,71 +210,118 @@ def initGraph(request):
     y = 300
     
     ass = "0"
-    
-    if(os.path.exists(bEdgeFile) and os.path.exists(eIndexFile)):
-        mp = minipg.GraphRange(nodeFile,edgeFile,pathFile,sepFile,chrListFile,bEdgeFile,eIndexFile)
-    else:
-        mp = minipg.GraphRange(nodeFile,edgeFile,pathFile,sepFile)
+    indexFlag = 0
+    if os.path.exists(bEdgeFile) and os.path.exists(eIndexFile) and os.path.exists(rNdDxFile) and os.path.exists(rNdFile) and os.path.exists(nrNdFile) and os.path.exists(mNdDxFile):
+        indexFlag = 1
+
+    mp = minipg.GraphRange(upDir,indexFlag)
     mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y)
-    
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     rNodeNum = len(draw_pos)
-    for i in range(rNodeNum ):
-        draw_node[i]["fx"] = draw_pos[i];
-        draw_node[i]["fy"] = y;
     
+    layout = para.get("lay")
+    if layout == "co":
+        for i in range(rNodeNum ):
+            draw_node[i]["x"] = draw_pos[i];
+            draw_node[i]["y"] = y;
+            draw_node[i]["fixed"] = '1';
+    else:
+        for i in range(rNodeNum ):
+            draw_node[i]["fx"] = draw_pos[i];
+            draw_node[i]["fy"] = y;
+            
     draw_edge = mp.draw_edge
     neStart = rNodeNum - 1
     dnode_len = mp.dnode_len
     for k in dnode_len:
         draw_edge[neStart]["dis"] = k
         neStart += 1
-    graphInfo = {'nodes':draw_node,'links':draw_edge,'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList}
+    ######################
+    
+    hnCov = []
+    
+    graphInfo = {'nodes':draw_node,'links':draw_edge,'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList,'iniEnd':sEnd}
+    
     return JsonResponse(graphInfo)    
     
 @csrf_exempt            
 def searchNode(request):
     para = request.POST
-    species = para.get("species")
+
     node = para.get('seg')
-    covFile = os.path.join(BinDir,"upload",species,"cover.info")
-    nodeFile = os.path.join(BinDir,"upload",species,"node.info")
-    sepFile = os.path.join(BinDir,"upload",species,"sep.info")
-    sep = getSep(sepFile)
-    with open(covFile) as cf:
-        header = []
-        cov = []
-        for line in cf:
-            line = line.strip()
-            arr = line.split("\t")
-            if line.startswith('#'):
-                header = arr[1:]
-            else:
-                if node == arr[0]:
-                    cov = arr[1:]
-                    break
+    dbDir = os.path.join(BinDir,"upload")
+    dbNodeFile = os.path.join(dbDir,"node.sort.bw")
+    dbCovFile = os.path.join(dbDir,"cover.bw")
+    assListFile = os.path.join(dbDir,"ass.list")
+    
+    sepFile = os.path.join(dbDir,"sep.info")
     
     nodeAss = ''
     nodeChr = ''
     nodeStart = ''
     nodeEnd = ''
-    with open(nodeFile) as nf:        
-        for line in nf:
-            if line.startswith('#'):
-                continue
-            line = line.strip()
-            arr = line.split('\t')
-            if node == arr[0]:
-                nodeAssArr = arr[1].split(sep)
-                nodeAss = "GRCh38.p14" if len(nodeAssArr) == 1 else nodeAssArr[0] + sep + nodeAssArr[1]
-                nodeChr = nodeAssArr[-1]
-                nodeStart = arr[2]
-                nodeEnd = arr[3]
-                break
+    header = []
+    sep = getSep(sepFile)
+    
+    with open(assListFile) as af:
+        for line in af:
+            header.append(line.strip())
+    
+    if os.path.exists(dbNodeFile):
+        mp = minipg.QueryNode(dbDir)
+        mp.queryDbNode(int(node))
+        
+        nodeAss = mp.nodeAss
+        nodeChr = mp.nodeChr
+        nodeStart = mp.nodeStart
+        nodeEnd = mp.nodeEnd
+    else:
+        nodeFile = os.path.join(dbDir,"node.info")
+        with open(nodeFile) as nf:        
+            for line in nf:
+                if line.startswith('#'):
+                    continue
+                line = line.strip()
+                arr = line.split('\t')
+                if node == arr[0]:
+                    nodeAssArr = arr[1].split(sep)
+                    nodeAss = nodeAssArr[0] + sep + nodeAssArr[1]
+                    nodeChr = nodeAssArr[-1]
+                    nodeStart = arr[2]
+                    nodeEnd = arr[3]
+                    break
+                    
+    cov = []    
+    if os.path.exists(dbCovFile):
+        mp = minipg.QueryNode(dbDir)
+        mp.queryDbCov(int(node))
+        cov = mp.ndCov
+    else:
+        covFile = os.path.join(dbDir,"cover.info")
+        cov = [0 for i in header]
+        with open(covFile) as cf:
+            for line in cf:
+                line = line.strip()
+                arr = line.split("\t")
+                if node == arr[0]:
+                    if arr[1] != "*":
+                        oneArr = arr[1].split(",")
+                        if len(oneArr) < len(header):
+                            for i in oneArr:
+                                cov[int(i)] = 1.00;
+                        else:
+                            cov = oneArr
+                            break
+                            
+                    if len(arr) > 2:
+                        mDx = arr[2].split(",")
+                        mArr = arr[3].split(",")
+                        for k,x in zip(mDx,mArr):
+                            cov[int(k)] = x
+                    break
+        
+        
     return JsonResponse({'ass':header,'cov':cov,'nodeAss':nodeAss,'nodeChr':nodeChr,'nodeStart':nodeStart,'nodeEnd':nodeEnd})   
-
-
-
 
 
