@@ -4,7 +4,6 @@ import argparse
 import re
 import os
 import gzip
-
 import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"module"))
 
@@ -21,11 +20,11 @@ parser.add_argument('--outDir',help="Output directory",default=None,required=Tru
 
 parser.add_argument('--minigraph',help="The absolute file path of minigraph executable file, this is used when rGFA file does not exist",default=None)
 parser.add_argument('--assList',help="Input assembly file list. When rGFA file does not exist this option can be taken to build the reference pangenome graph",default=None)
-parser.add_argument('--thread',help="Threads of minigraph running, by default: 10",type=int,default=10)
+parser.add_argument('--thread',help="Number of threads, by default: 10",type=int,default=10)
 parser.add_argument('--graphOpt',help="minigraph options (except '-cxggs -t') to generate graph, e.g.: '-q 5 -l 100000 -L 50'",default=None)
 
-parser.add_argument('--index',help="index the graph to speed up data visualization",action="store_true",default=False)
-parser.add_argument('--range',help="range size for indexing the graph, by default: 1000000",type=int,default=1000000)
+parser.add_argument('--index',help="Index the graph to speed up data visualization",action="store_true",default=False)
+parser.add_argument('--range',help="Range size for indexing the graph, by default: 2000",type=int,default=2000)
 
 paras = parser.parse_args()
 
@@ -142,7 +141,6 @@ def mapAss(nameList,dotList,suffix,minigraph,thread,outDir):
     gfaFile = os.path.join(graphDir,"out.gfa")
     
     with open(mapListFile,'w') as fh:
-        #for faFile,name in zip(newAssList,dotList):
         endPoint = len(dotList)
         for i in range(endPoint):
             outGAF = os.path.join(mapDir,dotList[i] + ".gaf")
@@ -151,14 +149,17 @@ def mapAss(nameList,dotList,suffix,minigraph,thread,outDir):
             
             fh.write(nameList[i] + "\t" + outGAF + "\n")
 
-def reduceGFA(gfaFile,nodeFile,edgeFile):
+def reduceGFA(sep,gfaFile,nodeFile,edgeFile,comChrFile,ndAssLFile):
     flag = False
     if gfaFile.endswith(".gz"):
         fh = gzip.open(gfaFile,"rb")
         flag = True
     else:
         fh = open(gfaFile)
-    with open(nodeFile,'w') as nfh, open(edgeFile,'w') as efh:
+        
+    comChrSet = set()
+    assSet = set()
+    with open(nodeFile,'w') as nfh, open(edgeFile,'w') as efh, open(comChrFile,'w') as cfh, open(ndAssLFile,'w') as afh:
         nfh.write("#Segment\tChr\tStart\tEnd\tLen\tRefOrNot\n")
         efh.write("#Source\tTarget\tOrigin1\tOrigin2\n")
         for line in fh:
@@ -167,7 +168,7 @@ def reduceGFA(gfaFile,nodeFile,edgeFile):
             line = line.strip()
             arr = line.split("\t")
             if arr[0] == 'S':
-                segment = arr[1]
+                segment = arr[1].replace("s","")
                 slen = arr[3].split(":")[2]
                 schr = arr[4].split(":")[2]
                 start = arr[5].split(":")[2]
@@ -175,17 +176,33 @@ def reduceGFA(gfaFile,nodeFile,edgeFile):
                 end = str(int(start) + int(slen))
                 refOrNot = arr[6].split(":")[2]
                 nfh.write(segment + "\t" + schr + "\t" + off_start + "\t" + end +"\t" + slen + "\t" + refOrNot +"\n")
+                
+                if schr not in comChrSet:
+                    comChrSet.add(schr)
+                    
+                assArr = schr.split(sep)
+                tAss = assArr[0] + sep + assArr[1]
+                if tAss not in assSet:
+                    assSet.add(tAss)
+                    
             elif arr[0] == 'L':
-                source = arr[1]
+                source = arr[1].replace("s","")
                 origin1 = arr[2]
-                target = arr[3]
+                target = arr[3].replace("s","")
                 origin2 = arr[4]
                 efh.write(source + "\t" + target + "\t" + origin1 + "\t" + origin2 + "\n")
-    fh.close()
+                
+        for tchr in sorted(comChrSet):
+            cfh.write(tchr + "\n")
+            
+        for ass in sorted(assSet):
+            afh.write(ass + "\n")
     
+    fh.close()
+
+  
 def refChrList(sep,nodeFile,outChrList):
     with open(nodeFile) as nf,open(outChrList,'w') as cl:
-        #cl.write("#Chr\tStart\tEnd\n")
         preChr = ""
         tStart = 1
         tEnd = 1
@@ -195,9 +212,11 @@ def refChrList(sep,nodeFile,outChrList):
             line = line.strip()
             arr = line.split("\t")
             if arr[5] != "0":
-                tchr = preChr.split(sep)[-1]
+                chrArr = preChr.split(sep)
+                tchr = chrArr[-1]
                 cl.write(tchr + "\t" + tStart + "\t" + tEnd + "\n")
-                break
+                refAss = chrArr[0] + sep + chrArr[1]
+                return refAss
             else:
                 if preChr == "":
                     tStart = arr[2]
@@ -212,7 +231,7 @@ def refChrList(sep,nodeFile,outChrList):
                         tEnd = arr[3]
             preChr = arr[1]
     
-def nodeCov(nodeFile,gafList,minMQ,covFile,assLFile,pathFile):
+def nodeCov(refAss,nodeFile,gafList,minMQ,covFile,assLFile,pathDir):
     with open(nodeFile) as nf:
         nodeSize = {}
         for line in nf:
@@ -222,11 +241,13 @@ def nodeCov(nodeFile,gafList,minMQ,covFile,assLFile,pathFile):
             arr = line.split("\t")
             nodeSize[arr[0]] = int(arr[4])
     
+    assSet = set()
     covInfo = {}
     pattern = re.compile("[><]")
     pat = re.compile("\s+")
     pat2 = re.compile("^\s*$")
-    with open(gafList) as gl,open(assLFile,'w') as al,open(pathFile,'w') as pf:
+    nAss = 0
+    with open(gafList) as gl,open(assLFile,'w') as af:
         for line in gl:
             if line.startswith('#'):
                 continue
@@ -235,16 +256,18 @@ def nodeCov(nodeFile,gafList,minMQ,covFile,assLFile,pathFile):
             line = line.strip()
             arr = pat.split(line)
             covInfo[arr[0]] = {}
-            al.write(arr[0]+"\n")
-            
-            with open(arr[1]) as gf:
+            af.write(arr[0] + "\n")
+            pathFile = os.path.join(pathDir,str(nAss) + ".path")
+            nAss += 1
+            with open(arr[1]) as gf,open(pathFile,'w') as pf:
                 for mapinfo in gf:
                     mapinfo = mapinfo.strip()
                     mapArr = mapinfo.split("\t")
                     if int(mapArr[11]) > minMQ:
-                        pf.write(mapArr[0]+"\t"+mapArr[5]+"\n")
+                        mapStr = mapArr[5].replace("s","")
+                        pf.write(mapArr[0]+"\t"+mapStr+"\n")
                         
-                        nodeArr = pattern.split(mapArr[5])
+                        nodeArr = pattern.split(mapStr)
                         nodeCount = len(nodeArr)
                         if nodeCount < 3:
                             covInfo[arr[0]][nodeArr[1]] = (int(mapArr[8]) - int(mapArr[7]) + 1) / nodeSize[nodeArr[1]]
@@ -266,21 +289,42 @@ def nodeCov(nodeFile,gafList,minMQ,covFile,assLFile,pathFile):
                                         covInfo[arr[0]][nodeArr[i]] += 1.00
                                     else:
                                         covInfo[arr[0]][nodeArr[i]] = 1.00
-    
+
     allNodes = nodeSize.keys()
     allAss = covInfo.keys()
+    numLimit = len(allAss) / 2
     with open(covFile,"w") as cf:
-        strAss = "\t".join(allAss)
-        cf.write("#Segid\t" + strAss + "\n")
         for tnode in allNodes:
-            covList = []
+            oneList = []
+            thList = []
+            vthList = []
+            i = 0
+            allValue = []
             for ass in allAss:
                 if tnode in covInfo[ass]:
-                    covList.append("%.2f" % covInfo[ass][tnode])
+                    if covInfo[ass][tnode] > 0.99 and covInfo[ass][tnode] < 1.01:
+                        oneList.append(i)
+                    elif covInfo[ass][tnode] > 0:
+                        thList.append(i)
+                        vthList.append("%.2f" % covInfo[ass][tnode])
+                    allValue.append("%.2f" % covInfo[ass][tnode])
                 else:
-                    covList.append("0.00")
-            strCov = "\t".join(covList)
-            cf.write(tnode + "\t" + strCov + "\n")    
+                    allValue.append(0.00)
+                i += 1
+            
+            strCov = ""
+            num = len(oneList) + len(thList)
+            if num < numLimit:
+                if len(oneList) > 0:
+                    strCov += ",".join([str(x) for x in oneList])
+                else:
+                    strCov = "*"
+                if len(thList) > 0:
+                    strCov += ("\t" + ",".join([str(x) for x in thList]))
+                    strCov += ("\t" + ",".join([str(x) for x in vthList]))
+            else:
+                strCov = ",".join([str(x) for x in allValue])
+            cf.write(tnode + "\t" + strCov + "\n")
 
 def wSep(sep,sepFile): 
     with open(sepFile,'w') as sf:
@@ -297,10 +341,13 @@ def fromScratch(sep,assList,minigraph,graphOpt,thread,minMQ,outDir):
     nodeFile = os.path.join(upDir,"node.info")
     edgeFile = os.path.join(upDir,"edge.info")
     chrListFile = os.path.join(upDir,"chr.list")
+    comChrFile = os.path.join(upDir,"complete.chr.list")
     assListFile = os.path.join(upDir,"ass.list")
+    ndAssLFile = os.path.join(upDir,"node.ass.list")
     covFile = os.path.join(upDir,"cover.info")
-    pathFile = os.path.join(upDir,"path.info")
     sepFile = os.path.join(upDir,"sep.info")
+    pathDir = os.path.join(upDir,"path")
+    os.mkdir(pathDir)
     
     graphDir = os.path.join(outDir,"newGraph")
     gfaFile = os.path.join(graphDir,"out.gfa")
@@ -309,9 +356,9 @@ def fromScratch(sep,assList,minigraph,graphOpt,thread,minMQ,outDir):
     mapListFile = os.path.join(mapDir,"gaf.list")
     
     wSep(sep,sepFile)
-    reduceGFA(gfaFile,nodeFile,edgeFile)
-    refChrList(sep,nodeFile,chrListFile)
-    nodeCov(nodeFile,mapListFile,minMQ,covFile,assListFile,pathFile)
+    reduceGFA(sep,gfaFile,nodeFile,edgeFile,comChrFile,ndAssLFile)
+    refAss = refChrList(sep,nodeFile,chrListFile)
+    nodeCov(refAss,nodeFile,mapListFile,minMQ,covFile,assListFile,pathDir)
 
 def fromGFA(sep,gfaFile,mapListFile,minMQ,outDir):
     upDir = os.path.join(outDir,"upload")
@@ -320,31 +367,27 @@ def fromGFA(sep,gfaFile,mapListFile,minMQ,outDir):
     nodeFile = os.path.join(upDir,"node.info")
     edgeFile = os.path.join(upDir,"edge.info")
     chrListFile = os.path.join(upDir,"chr.list")
+    comChrFile = os.path.join(upDir,"complete.chr.list")
     assListFile = os.path.join(upDir,"ass.list")
+    ndAssLFile = os.path.join(upDir,"node.ass.list")
     covFile = os.path.join(upDir,"cover.info")
-    pathFile = os.path.join(upDir,"path.info")
     sepFile = os.path.join(upDir,"sep.info")
+    pathDir = os.path.join(upDir,"path")
+    os.mkdir(pathDir)
     
     wSep(sep,sepFile)
-    reduceGFA(gfaFile,nodeFile,edgeFile)
-    refChrList(sep,nodeFile,chrListFile)
+    reduceGFA(sep,gfaFile,nodeFile,edgeFile,comChrFile,ndAssLFile)
+    refAss = refChrList(sep,nodeFile,chrListFile)
     if mapListFile is not None:
-        nodeCov(nodeFile,mapListFile,minMQ,covFile,assListFile,pathFile)
+        nodeCov(refAss,nodeFile,mapListFile,minMQ,covFile,assListFile,pathDir)
         
-def indexGraph():
-    nodeFile = os.path.join(upDir,"node.info")
-    edgeFile = os.path.join(upDir,"edge.info")
-    chrListFile = os.path.join(upDir,"chr.list")
-    pathFile = os.path.join(upDir,"path.info")
-    sepFile = os.path.join(upDir,"sep.info")
-    
-    bEdgeFile = os.path.join(upDir,"upload","edge.bw")
-    eIndexFile = os.path.join(upDir,"upload","edge.dx")
-    mp = minipg.GraphRange(nodeFile,edgeFile,pathFile,sepFile,chrListFile,bEdgeFile,eIndexFile)
+def indexGraph(outDir,nthread):
+    upDir = os.path.join(outDir,"upload")
+    mp = minipg.GraphRange(upDir,0)
     rangeSize = paras.range
     ex = 1000000
-    mp.edgeWrite(rangeSize,ex)
-    
+    mp.edgeWrite(rangeSize,ex,0,nthread)    
+ 
 def miniMain():
     sep = paras.sep
     gfaFile = paras.rGFA
@@ -355,6 +398,7 @@ def miniMain():
     minigraph = paras.minigraph
     graphOpt = paras.graphOpt
     thread = str(paras.thread)
+    nthread = paras.thread
     checkOut(outDir)
     if gfaFile is not None:
         fromGFA(sep,gfaFile,mapListFile,minMQ,outDir)
@@ -364,9 +408,9 @@ def miniMain():
         else:
             print("Error: lack of parameters!")
             exit(1)
-    
+    #
     if paras.index:
-        indexGraph()
+        indexGraph(outDir,nthread)
     
 if __name__ == '__main__':
     miniMain()
