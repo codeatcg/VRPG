@@ -3,7 +3,7 @@ CXX = g++
 CPPFLAG = -D PYMODULE
 PYSO = minipg$(shell python3-config --extension-suffix)
 INCLUDE =  $(shell python3 -m pybind11 --includes)
-CXXFLAG = -O3 -Wall -std=c++11 -lpthread
+CXXFLAG = -O3 -Wall -std=c++11 -pthread
 
 all : gfa2view $(PYSO)
 
