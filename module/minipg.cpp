@@ -1762,7 +1762,7 @@ void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordere
         int pre = -2;
         for(auto pos : nd.second){
             if(pos - pre > 1){
-                if(! nodeCons.empty()){
+                if(pre >= 0){
                     PathRang tpRan = {nd.first,firNode,firOri,nodeCons};
                     allPaRa.push_back(tpRan);
                     
@@ -1792,7 +1792,7 @@ void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordere
             pre = pos;
         }
         //
-        if(! nodeCons.empty()){
+        if(pre >= 0){
             PathRang tpRan = {nd.first,firNode,firOri,nodeCons};
             allPaRa.push_back(tpRan);
             
