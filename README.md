@@ -76,7 +76,7 @@ For graphs in GFA format that can be processed by VRPG segment names should be n
 module/gfa2view --GFA in.gfa --ref refName --outDir output_dir --index --range 2000 --thread 10
 
 ```
-**Note**, For the current version of 'gfa2view' memory consumption is proportion to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
+**Note**, For the current version of 'gfa2view' memory consumption is proportional to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
 
 If only a particular set of reference chromosomes or contigs are considered for view the option ‘--refChr’ can be used to save running time. For this option a file containing a reference chromosome or contig name (not contain sample name or haplotype name) per line is required.  
 
