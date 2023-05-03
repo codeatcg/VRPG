@@ -20,7 +20,7 @@ For cola layout the node size is more proportional to the segment sequence size.
 Python3 (>=3.6) and pip environment are required.  
 
 ```
-# For installing a historical version (v0.1.0) please access https://github.com/codeatcg/VRPG/releases and download the source code.
+# For installing a historical version please access https://github.com/codeatcg/VRPG/releases and download the source code.
 
 # install the latest version
 # gcc >= 4.9
@@ -76,10 +76,14 @@ For graphs in GFA format that can be processed by VRPG segment names should be n
 module/gfa2view --GFA in.gfa --ref refName --outDir output_dir --index --range 2000 --thread 10
 
 ```
+**Note**, For the current version of 'gfa2view' memory consumption is proportion to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
 
 If only a particular set of reference chromosomes or contigs are considered for view the option ‘--refChr’ can be used to save running time. For this option a file containing a reference chromosome or contig name (not contain sample name or haplotype name) per line is required.  
 
+
 # Execution  
+## Local server or personal computer with Linux/Ubuntu operating system  
+
 1. Move all output files in directory 'upload' generated during data preparation to the empty folder 'upload' of VRPG.
 2. Start the development server of Django  
 
@@ -93,7 +97,11 @@ Starting development server at http://127.0.0.1:8000/
 
 3. Then open http://127.0.0.1:8000/app/vrpg/ in your browser and you will see the drawing of the pangenome graph.  
 
-If server is running on different machine start the server by running
+**Note**, For large pangenome graph it's better to prepare data in a computing server and then transfer the data to local 'upload' folder of VRPG.
+
+## Remote server  
+
+If server is running on a different machine start the server by running
 
 ```
 python3 manage.py runserver 0.0.0.0:8000
