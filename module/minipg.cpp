@@ -1435,13 +1435,13 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
             vector<int> deep;
             for(ENode &o_node : it->second){
                 if(exNode.find(o_node.node) != exNode.end()){
-                    if(range_set.find(o_node.node) != range_set.end()){
+                    //if(range_set.find(o_node.node) != range_set.end()){
                         NEdge sym = {tnode,o_node.node,o_node.mark};
                         
                         if(r_edge_dict.find(sym) == r_edge_dict.end()){
                             r_edge_dict.insert(sym);
                         }
-                    }
+                    //}
                 }else{
                     if(nRefNode.find(o_node.node) == nRefNode.end()){
                         tNref.push_back(o_node.node);
@@ -1517,6 +1517,11 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
                     }
                     NEdge sym = {o_node.node,tnode,o_node.mark};
                     r_edge_dict.insert(sym);
+                }else{
+                    NEdge sym = {o_node.node,tnode,o_node.mark};
+                    if(r_edge_dict.find(sym) == r_edge_dict.end()){
+                        r_edge_dict.insert(sym);
+                    }
                 }
             }
             
@@ -1741,9 +1746,24 @@ void GraphRange::mergeDx(string &rndDxFile,string &nrNumFile,string &mgDxFile){
 void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordered_map<NodeType,vector<int> > &ndCutMap,list<PathRang> &allPaRa){
     unordered_map<int,vector<int> > fragPos;
     unordered_map<NodeType,vector<int> >::iterator it;
+    int preMin,preMax,curMin,curMax;
+    bool flag = false;
     for(size_t j = 0; j < orient.size(); ++j){
         it = ndCutMap.find(nodes[j]);
         if(it != ndCutMap.end()){
+            curMin = (it->second).front();
+            curMax = (it->second).back();
+            if(flag){
+                if(curMin > preMax || curMax < preMin){
+                    if(fragPos.find(curMin) != fragPos.end()){
+                        fragPos[curMin].push_back(j - 1);
+                    }else{
+                        int frag = j - 1;
+                        vector<int> fr{frag};
+                        fragPos.emplace(curMin,fr);
+                    } 
+                }
+            }
             for(auto x : it->second){
                 if(fragPos.find(x) != fragPos.end()){
                     fragPos[x].push_back(j);
@@ -1752,6 +1772,12 @@ void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordere
                     fragPos.emplace(x,fr);
                 }
             }
+            //
+            preMin = curMin;
+            preMax = curMax;
+            flag = true;
+        }else{
+            flag = false;   
         }
     }
     
