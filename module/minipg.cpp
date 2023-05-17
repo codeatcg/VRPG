@@ -965,6 +965,8 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             NEdge tsym = {pre_node,tnode,'2'};
             if(r_edge_dict.find(tsym) != r_edge_dict.end()){
                 r_edge_dict[tsym] = 0;
+            }else{
+                r_edge_dict.emplace(tsym,0);
             }
         }
         
@@ -1255,11 +1257,16 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
     }
 
     allNode.sort();
-    int total = allNode.size();
+    int total = allNode.back().node;
     sfh.write((char *)&total,intSize);
     
+    int pre = 0;
     int ndSize = sizeof(ANode);
     for(auto &gnode : allNode){
+        for(int i = pre + 1; i < gnode.node; ++i){
+            ANode axNode = {0,0,0};
+            sfh.write((char *)&axNode,ndSize);    
+        }
         ANode axNode = {gnode.start,gnode.pend,gnode.achr};
         sfh.write((char *)&axNode,ndSize);
     }
