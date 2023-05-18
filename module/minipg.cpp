@@ -1269,6 +1269,7 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
         }
         ANode axNode = {gnode.start,gnode.pend,gnode.achr};
         sfh.write((char *)&axNode,ndSize);
+        pre = gnode.node;
     }
     sfh.close();
     in.close();
