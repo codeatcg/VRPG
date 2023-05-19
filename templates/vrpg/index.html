@@ -405,10 +405,10 @@
                 var pend = parseInt($('#endPos').val());
                 var dis = pend - pstart;
                 if(pend < pstart){
-                    $('#Range').html('<p style="color:red">Error! The start coordinate must be smaller than the end coordinate!</p>');
+                    $('#Range').html('<p style="color:red">Error: the start coordinate must be smaller than the end coordinate.</p>');
                 }else{
                     if(dis > 1000000){
-                        $('#Range').html('<p style="color:red">Warning! The chromosome interval to view is too wide!</p>');
+                        $('#Range').html('<p style="color:red">Warning: the genomic region to view is too large.</p>');
                     }else{
                         $('#Range').html('');
                     }
