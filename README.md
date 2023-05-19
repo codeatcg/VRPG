@@ -3,7 +3,7 @@ an interactive web viewer for reference pangenome graphs
 
 |  |  |
 | --- | --- |
-| <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window2.png" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description3.png" width=400px/> |
+| <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window2.png" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description.png" width=400px/> |
 
 Figrue on the left was based on vrpg-v0.1.1 and the particular assembly path was not highlighted by arrow lines. Figrues on the right were picked from drawings by vrpg-v0.1.2.
 
