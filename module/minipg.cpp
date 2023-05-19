@@ -749,7 +749,7 @@ void GraphRange::dxAssNode(int assNum,int chrNum,int sStart,int sEnd,map<NEdge,i
     }
 }
 
-void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY){
+void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,bool sim,bool refSim){
     unordered_map<NodeType,vector<ENode> > iedge;
     unordered_map<NodeType,vector<ENode> > oedge;
     
@@ -792,38 +792,216 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
     int e_nid = 0;
     NodeType pre_node = 0;
     unordered_set<NodeType> range_set;
+    int nx = 0;
     for(NodeType &rnode: rangeNode){
         range_set.insert(rnode);
+        ++nx;
     }
     
     map<NEdge,int> r_edge_dict;
     unordered_map<NodeType,std::vector<ENode> >::iterator it;
+    unordered_set<NodeType> subMap;
+    int mnx = nx - 1;
+    
+    if(sim){
+        int point = 0;
+        int lpoint = 0,rpoint = 0;
+        while(point < nx){
+            lpoint = point;
+            rpoint = point;
+
+            int tnode = rangeNode[point];
+            it = oedge.find(tnode);
+            if(it != oedge.end()){
+                vector<NodeType> tNref;
+                vector<int> deep;
+
+                int maxLen = 0;
+                for(ENode &o_node : it->second){
+                    if(exNode.find(o_node.node) == exNode.end()){
+                        if(subMap.find(o_node.node) == subMap.end()){
+                            tNref.push_back(o_node.node);
+                            deep.push_back(0);
+                            int tlen = info[o_node.node].len;
+                            if(tlen > maxLen){
+                                maxLen = tlen;
+                            }
+                        }
+                    }
+                }
+                if(maxLen < 50){
+                    if(! tNref.empty()){
+                        size_t i = 0;
+                        int aMaxLen = 0;
+                        int preDeep = 1;
+                        
+                        unordered_set<NodeType> tset;
+                        while(i < tNref.size()){
+                            if(deep[i] != preDeep){
+                                maxLen += aMaxLen;
+                                if(maxLen >= 50){
+                                    break;
+                                }
+                                //
+                                aMaxLen = 0;
+                            }
+                            if(deep[i] > 10){
+                                break;   
+                            }
+                            
+                            it = oedge.find(tNref[i]);
+                            if(it != oedge.end()){
+                                for(ENode &to_node : it->second){
+                                    if(exNode.find(to_node.node) == exNode.end()){
+                                        if(tset.find(to_node.node) == tset.end()){
+                                            tNref.push_back(to_node.node);
+                                            deep.push_back(deep[i]+1);
+                                            tset.insert(to_node.node);
+                                            //
+                                            if(info[to_node.node].len > aMaxLen){
+                                                aMaxLen = info[to_node.node].len;
+                                            }
+                                        }
+                                    }else{
+                                        if(range_set.find(to_node.node) != range_set.end()){
+                                            int tpoint = range_set[to_node.node];
+                                            if(tpoint > rpoint){
+                                                rpoint = tpoint;
+                                            }else{
+                                                if(tpoint < lpoint){
+                                                    lpoint = tpoint;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            it = iedge.find(tNref[i]);
+                            if(it != iedge.end()){
+                                for(ENode &to_node : it->second){
+                                    if(exNode.find(to_node.node) == exNode.end()){
+                                        if(tset.find(to_node.node) == tset.end()){
+                                            tNref.push_back(to_node.node);
+                                            deep.push_back(deep[i]+1);
+                                            tset.insert(to_node.node);
+                                            //
+                                            if(info[to_node.node].len > aMaxLen){
+                                                aMaxLen = info[to_node.node].len;
+                                            }
+                                        }
+                                    }else{
+                                        if(range_set.find(to_node.node) != range_set.end()){
+                                            int tpoint = range_set[to_node.node];
+                                            if(tpoint > rpoint){
+                                                rpoint = tpoint;
+                                            }else{
+                                                if(tpoint < lpoint){
+                                                    lpoint = tpoint;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            //
+                            preDeep = deep[i];
+                            ++i;
+                        }
+                        //
+                        maxLen += aMaxLen;
+                    }
+                }
+                
+                if(maxLen < 50){
+                    int rlen = 0,llen = 0;
+                    if(point > lpoint){
+                        for(int j = lpoint + 1; j < point; ++j){
+                            llen += info[rangeNode[j]].len;
+                        }
+                        if(llen < 50){
+                            for(int j = point + 1; j < rpoint; ++j){
+                                rlen += info[rangeNode[j]].len;
+                            }
+                            if(rlen < 50){
+                                for(auto &xnode : tNref){
+                                    subMap.insert(xnode);
+                                }
+                            }
+                        }
+                    }else{
+                        for(int j = lpoint + 1; j < rpoint; ++j){
+                            rlen += info[rangeNode[j]].len;
+                        }
+                        if(rlen < 50){
+                            for(auto &xnode : tNref){
+                                subMap.insert(xnode);
+                            }
+                        }
+                    }
+                }
+            }
+
+            ++point;
+        }
+    }
+    
+    NodeType simNode = 0;
     for(NodeType &tnode: rangeNode){
         nnames.push_back(tnode);
         int node_len = info[tnode].len;
         genome.push_back(info[tnode].ass);
         //
         it = oedge.find(tnode);
+        bool emp1 = true,emp2 = true;
         if(it != oedge.end()){
             vector<NodeType> tNref;
             vector<int> deep;
             for(ENode &o_node : it->second){
                 if(exNode.find(o_node.node) != exNode.end()){
                     if(range_set.find(o_node.node) != range_set.end()){
-                        NEdge sym = {tnode,o_node.node,o_node.mark};
-                        
-                        if(r_edge_dict.find(sym) == r_edge_dict.end()){
-                            r_edge_dict.emplace(sym,2);
+                        bool flag = true;
+                        if(sim){
+                            if(range_set[o_node.node] > range_set[tnode]){
+                                int vlen = 0;
+                                for(int k = range_set[tnode] + 1; k < range_set[o_node.node]; ++k){
+                                    vlen += info[rangeNode[k]].len;
+                                }
+                                if(vlen < 50){
+                                    flag = false;
+                                }
+                            }else{
+                                int vlen = 0;
+                                for(int k = range_set[o_node.node] + 1; k < range_set[tnode]; ++k){
+                                    vlen += info[rangeNode[k]].len;
+                                }
+                                if(vlen < 50){
+                                    flag = false;
+                                }
+                            }
                         }
+                        if(flag){
+                            NEdge sym = {tnode,o_node.node,o_node.mark};
+                            if(r_edge_dict.find(sym) == r_edge_dict.end()){
+                                r_edge_dict.emplace(sym,2);
+                            }
+                            emp1 = false;
                     }
                 }else{
                     if(nRefNode.find(o_node.node) == nRefNode.end()){
+                        if(sim){
+                            if(subMap.find(o_node.node) != subMap.end()){
+                                continue;
+                            }
+                        }
+                        
                         tNref.push_back(o_node.node);
                         deep.push_back(0);
                         nRefNode.insert(o_node.node);
                     }
                     NEdge sym = {tnode,o_node.node,o_node.mark};
                     r_edge_dict.emplace(sym,2);
+                    emp1 = false;
                 }
             }
             
@@ -873,8 +1051,6 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                             }
                         }
                     }
-                    
-                    
                     i += 1;
                 }
             }
@@ -885,14 +1061,54 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             vector<int> tNref;
             vector<int> deep;
             for(ENode &o_node : it->second){
-                if(exNode.find(o_node.node) == exNode.end()){
-                    if(nRefNode.find(o_node.node) == nRefNode.end()){
-                        tNref.push_back(o_node.node);
-                        deep.push_back(0);
-                        nRefNode.insert(o_node.node);
+                if(exNode.find(o_node.node) != exNode.end()){
+                    if(sim){
+                        NEdge sym = {o_node.node,tnode,o_node.mark};
+                        if(r_edge_dict.find(sym) != r_edge_dict.end()){
+                            emp2 = false;
+                        }else{
+                            if(range_set.find(o_node.node) != range_set.end()){
+                                bool flag = true;
+                                
+                                if(range_set[o_node.node] > range_set[tnode]){
+                                    int vlen = 0;
+                                    for(int k = range_set[tnode] + 1; k < range_set[o_node.node]; ++k){
+                                        vlen += info[rangeNode[k]].len;
+                                    }
+                                    if(vlen < 50){
+                                        flag = false;
+                                    }
+                                }else{
+                                    int vlen = 0;
+                                    for(int k = range_set[o_node.node] + 1; k < range_set[tnode]; ++k){
+                                        vlen += info[rangeNode[k]].len;
+                                    }
+                                    if(vlen < 50){
+                                        flag = false;
+                                    }
+                                }
+                                
+                                if(flag){
+                                    r_edge_dict.emplace(sym,2);
+                                    emp2 = false;
+                                }
+                            }
+                        }
                     }
-                    NEdge sym = {o_node.node,tnode,o_node.mark};
-                    r_edge_dict.emplace(sym,2);
+                }else{
+                        if(nRefNode.find(o_node.node) == nRefNode.end()){
+                            if(sim){
+                                if(subMap.find(o_node.node) != subMap.end()){
+                                    continue;
+                                }
+                            }
+                            tNref.push_back(o_node.node);
+                            deep.push_back(0);
+                            nRefNode.insert(o_node.node);
+                        }
+                        emp2 = false;
+                        NEdge sym = {o_node.node,tnode,o_node.mark};
+                        r_edge_dict.emplace(sym,2);
                 }
             }
             
@@ -946,53 +1162,113 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             }
         }
         //
-        if(gNum > 0){
-            node_pre += x_wCut;
-            iNum += 1;
+        if(refSim){
+            bool dRef = false;
+            if(emp1 && emp2){
+                dRef = true;
+            }          
+            if(gNum > 0){
+                node_pre += x_wCut;
+                if(! dRef || (gNum == mnx)){
+                    iNum += 1;
+                    //
+                    Ndic tdNode;
+                    tdNode.insert(Ndic::value_type("id",iNum));
+                    tdNode.insert(Ndic::value_type("group",gNum));
+                    draw_pos.push_back(node_pre);
+                    draw_node.push_back(tdNode);
+                    
+                    map<string,int> tdEdge;
+                    tdEdge.insert(map<string,int>::value_type("source",iNum-1));
+                    tdEdge.insert(map<string,int>::value_type("target",iNum));
+                    tdEdge.insert(map<string,int>::value_type("type",1));
+                    draw_edge.push_back(tdEdge);
+                    s_nid = iNum;
+                    NEdge tsym = {simNode,tnode,'2'};
+                    if(r_edge_dict.find(tsym) != r_edge_dict.end()){
+                        if(simNode == pre_node){
+                            r_edge_dict[tsym] = 0;
+                        }
+                    }else{
+                        r_edge_dict.emplace(tsym,0);
+                    }
+                    //
+                    simNode = tnode;
+                }
+            }
             
+            float trans = node_len * wPerK;
+            node_pre += trans;
+            if(! dRef || (gNum == 0) || (gNum == mnx)){
+                iNum += 1;
+                //
+                Ndic tdNode;
+                tdNode.insert(Ndic::value_type("id",iNum));
+                tdNode.insert(Ndic::value_type("group",gNum));
+                draw_pos.push_back(node_pre);
+                draw_node.push_back(tdNode);
+                
+                map<string,int> tdEdge;
+                tdEdge.insert(map<string,int>::value_type("source",iNum-1));
+                tdEdge.insert(map<string,int>::value_type("target",iNum));
+                tdEdge.insert(map<string,int>::value_type("type",0));
+                draw_edge.push_back(tdEdge);
+                //
+                e_nid = iNum;
+                Nid tnid = {s_nid,e_nid,gNum};            
+                nid_dict.emplace(tnode,tnid);
+            }
+            gNum += 1;
+            pre_node = tnode;
+        }else{
+            if(gNum > 0){
+                node_pre += x_wCut;
+                iNum += 1;
+
+                Ndic tdNode;
+                tdNode.insert(Ndic::value_type("id",iNum));
+                tdNode.insert(Ndic::value_type("group",gNum));
+                draw_pos.push_back(node_pre);
+                draw_node.push_back(tdNode);
+
+                map<string,int> tdEdge;
+                tdEdge.insert(map<string,int>::value_type("source",iNum-1));
+                tdEdge.insert(map<string,int>::value_type("target",iNum));
+                tdEdge.insert(map<string,int>::value_type("type",1));
+                draw_edge.push_back(tdEdge);
+                s_nid = iNum;
+                NEdge tsym = {pre_node,tnode,'2'};
+                if(r_edge_dict.find(tsym) != r_edge_dict.end()){
+                    r_edge_dict[tsym] = 0;
+                }else{
+                    r_edge_dict.emplace(tsym,0);
+                }
+            }
+        
+        
+            float trans = node_len * wPerK;
+            node_pre += trans;
+            iNum += 1;
+
             Ndic tdNode;
             tdNode.insert(Ndic::value_type("id",iNum));
             tdNode.insert(Ndic::value_type("group",gNum));
             draw_pos.push_back(node_pre);
             draw_node.push_back(tdNode);
-            
+
             map<string,int> tdEdge;
             tdEdge.insert(map<string,int>::value_type("source",iNum-1));
             tdEdge.insert(map<string,int>::value_type("target",iNum));
-            tdEdge.insert(map<string,int>::value_type("type",1));
+            tdEdge.insert(map<string,int>::value_type("type",0));
             draw_edge.push_back(tdEdge);
-            s_nid = iNum;
-            NEdge tsym = {pre_node,tnode,'2'};
-            if(r_edge_dict.find(tsym) != r_edge_dict.end()){
-                r_edge_dict[tsym] = 0;
-            }else{
-                r_edge_dict.emplace(tsym,0);
-            }
+            //
+            e_nid = iNum;
+            Nid tnid = {s_nid,e_nid,gNum};
+            nid_dict.emplace(tnode,tnid);
+
+            gNum += 1;
+            pre_node = tnode;
         }
-        
-        float trans = node_len * wPerK;
-        node_pre += trans;
-        iNum += 1;
-        
-        Ndic tdNode;
-        tdNode.insert(Ndic::value_type("id",iNum));
-        tdNode.insert(Ndic::value_type("group",gNum));
-        draw_pos.push_back(node_pre);
-        draw_node.push_back(tdNode);
-        
-        map<string,int> tdEdge;
-        tdEdge.insert(map<string,int>::value_type("source",iNum-1));
-        tdEdge.insert(map<string,int>::value_type("target",iNum));
-        tdEdge.insert(map<string,int>::value_type("type",0));
-        draw_edge.push_back(tdEdge);
-        //
-        e_nid = iNum;
-        Nid tnid = {s_nid,e_nid,gNum};
-        nid_dict.emplace(tnode,tnid);
-        
-        gNum += 1;
-        pre_node = tnode;
-        
     }
     
     for(auto &nk : nRefNode){
