@@ -33,23 +33,42 @@
         <hr color="#F5F5F5" size=1>
     
         <div style="margin-top:10px; margin-left:100px; margin-right:100px">
+            <div style="background-color:#F7F7F7; padding-top:30px; padding-bottom:15px; width:1320px">
+                <div class="form-group row">
+                    <label for="species" class="col-sm-3 col-form-label" style="font-family:Arial">
+                        &nbsp;&nbsp;&nbsp;&nbsp;<strong>Pangenome graph dataset</strong>
+                    </label>
+                    <div class="col-sm-5">
+                        <select id="species" class="form-control">
+                            <option value="0">default</option>
+                            {% for dir in folder %}
+                                <option value={{ dir }}>{{ dir }}</option>
+                            {% endfor %}
+                        <select>
+                    </div>
+                </div>
+            </div>
             
-            <div class="form-inline mt-2">
-                <select id="chrName" class="form-control" style="width:100px"></select>
+            <div class="form-inline mt-2" style="width:1320px">
+                <select id="chrName" class="form-control" style="width:150px"></select>
                 
                 <input id="startPos" value="1" type="number" min="1" class="form-control ml-2" style="width:150px">
                 <span class="mx-2">-</span>
                 <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:150px">
                 
                 <button id="go" class="btn btn-primary  ml-2">Go</button>
-                <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.png' %}"></img></button>
-                <button id="mright" class="btn"><img src="{% static 'images/arrowRight3.png' %}"></img></button>
+                <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.svg' %}"></img></button>
+                <button id="mright" class="btn"><img src="{% static 'images/arrowRight3.svg' %}"></img></button>
                 
-                <button id="zoomIn" class="btn"><img src="{% static 'images/zoomIn2.png' %}"></img></button>
-                <button id="zoomOut" class="btn mr-2"><img src="{% static 'images/zoomOut2.png' %}"></img></button>
+                <button id="zoomIn" class="btn"><img src="{% static 'images/zoomIn2.svg' %}"></img></button>
+                <button id="zoomOut" class="btn mr-2"><img src="{% static 'images/zoomOut2.svg' %}"></img></button>
                 
-                <label class="ml-2" for="ass">Highlight</label>
-                <select id="ass" class="form-control ml-1" style="width:150px"></select>
+                <label class="ml-3" for="sim">Simplify</label>
+                <select id="sim" class="form-control ml-1">
+                    <option value="mr">non-reference nodes</option>
+                    <option value="mnr">all nodes</option>
+                    <option value="off">non</option>
+                </select>
                 
                 <label class="ml-3" for="centg">Layout</label>
                 <select id="centg" class="form-control ml-1" style="width:120px">
@@ -57,9 +76,16 @@
                     <option value="ex">expanded</option>
                     <option value="co">cola</option>
                 </select>
-                
-                <button id="savePlot" class="btn btn-primary ml-3">Save Image(*.svg)</button>
             </div>
+            
+            <div class="form-inline mt-2" style="width:1320px">
+                <label for="ass">Highlight</label>
+                <select id="ass" class="form-control ml-1" style="width:200px"></select>
+                
+                <button id="stopAni" class="btn btn-primary ml-3">Stop Animation</button>
+                <button id="savePlot" class="btn btn-primary ml-3">Save Image (*.svg)</button>
+            </div>
+            
             
             <div id="Range"></div>
             <style>
@@ -98,6 +124,17 @@
             function graph(drawData){
                 var width = 1000;
                 var height = 600;
+                 $('#Range').html('');
+                if(drawData.nodes.length > 30000){
+                    $('#Range').html('<p style="color:red">Warning: too many nodes, browser may fail to render the page!</p>');
+                }
+                if($('#centg').val() == "co"){
+                    if(drawData.nodes.length > 1000){
+                        $('#Range').append('<p style="color:red">Warning: too many nodes, cola layout was disabled!</p>');
+                        $('#centg').val("ex");
+                    }
+                }
+                
                 if($('#centg').val() == "sq"){
                     simulation = d3.forceSimulation(drawData.nodes)
                         .force('charge', d3.forceManyBody().strength(-50))
@@ -261,17 +298,17 @@
                 
                 zoomFun = d3.zoom()
                            .extent([[0,0],[width,height]])
-                           .scaleExtent([0.01,100])
+                           .scaleExtent([0.01,500])
                            .on("zoom",zoomed);
                            
                 svg.call(zoomFun);
                            
                 $('#zoomIn').on("click",function(){
-                    svg.transition().call(zoomFun.scaleBy,2);
+                    svg.transition().call(zoomFun.scaleBy,1.25);
                 });
                 
                 $('#zoomOut').on("click",function(){
-                    svg.transition().call(zoomFun.scaleBy,0.5);
+                    svg.transition().call(zoomFun.scaleBy,0.8);
                 });
 
                 let tAlpha = 0;
@@ -337,6 +374,7 @@
                 fData.append('end',$('#endPos').val());
                 fData.append('ass',$('#ass').val());
                 fData.append('lay',$('#centg').val());
+                fData.append('sim',$('#sim').val());
                 
                 var csrfToken = $("[name='csrfmiddlewaretoken']").val();
                 fData.append('csrfmiddlewaretoken',csrfToken);
@@ -375,6 +413,8 @@
             }
             
             function initGraph(){
+                $('#sim').val("mr");
+                $('#centg').val("sq");
                 var fData = new FormData();
                 //fData.append('species',$('#species').val());
                 var csrfToken = $("[name='csrfmiddlewaretoken']").val();
@@ -393,6 +433,7 @@
                     
                     success: function(data){
                         chrOpt(data.nameList);
+                        $('#startPos').val("1");
                         $('#endPos').val(data.iniEnd)
                         assOpt(data.ass);
                         graph(data);
@@ -417,6 +458,30 @@
             
             $(function(){
                 initGraph();
+            });
+            
+            $('#stopAni').on("click",function(){
+                if(typeof d3cola != 'undefined'){
+                    d3cola.stop();
+                }
+                if(typeof simulation != 'undefined'){
+                    simulation.stop();
+                }
+            });
+            
+            $('#sim').on("change",function(){
+                var pstart = parseInt($('#startPos').val());
+                var pend = parseInt($('#endPos').val());
+                var dis = pend - pstart;
+                if(dis > 0 && dis <= 1000000){
+                    if(typeof d3cola != 'undefined'){
+                        d3cola.stop();
+                    }
+                    if(typeof simulation != 'undefined'){
+                        simulation.stop();
+                    }
+                    plotGraph();
+                }
             });
             
             $('#go').on("click",function(){
@@ -472,16 +537,6 @@
                     simulation.stop();
                 }
                 $('#nodeInfo').html('<p style="color:gray; margin-top:290px">Click on the graph node in the left box to find more about its corresponding genomic segment.<p>')
-                $('#startPos').val("1");
-                if($('#species').val() == "Saccharomyces_cerevisiae"){
-                    $('#endPos').val("10000");
-                }else if($('#species').val() == "Homo_sapiens"){
-                    $('#endPos').val("50000");
-                }else if($('#species').val() == "mc_hs"){
-                    $('#endPos').val("25000");
-                }else{
-                    $('#endPos').val("15000");
-                }
                 initGraph();
             });
             
