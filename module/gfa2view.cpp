@@ -13,7 +13,8 @@ using namespace std;
 int readGFA(string &tmpFolder,ifstream &in,string &refStr,string &sep,unordered_map<int,int> &mNodeLen,map<NEdge,int> &edgeMap,map<NEdge,int> &jumpMap,ofstream &afh,ofstream &acfh){
     string gfaLine;
     stringstream strStream;
-    int nodeCount = 0;
+    //int nodeCount = 0;
+    int maxNode = 0;
     int node,node1,node2;
     string tag,nodeSeq,align,fullName,path;
     char sign1,sign2;
@@ -47,7 +48,10 @@ int readGFA(string &tmpFolder,ifstream &in,string &refStr,string &sep,unordered_
                 strStream >> node;
                 strStream >> nodeSeq;
                 mNodeLen.emplace(node,nodeSeq.length());
-                ++nodeCount;
+                //++nodeCount;
+                if(node > maxNode){
+                    maxNode = node;    
+                }
                 break;
             case 'L':
                 strStream >> tag;
@@ -172,7 +176,8 @@ int readGFA(string &tmpFolder,ifstream &in,string &refStr,string &sep,unordered_
     for(auto &tAss : assVec){
         afh<<tAss<<endl;
     }
-    return nodeCount;
+    //return nodeCount;
+    return maxNode;
 }
 
 int psRchrWalk(string &refPath,string &fullName,int refStart,unordered_map<int,int> &mNodeLen,int &neoID,unordered_set<int> &refNodeSet,
