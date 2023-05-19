@@ -10,7 +10,9 @@ from module import minipg
 
 BinDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def index(request):
-    return render(request,"vrpg/index.html",{})
+    allFiles = os.listdir(os.path.join(BinDir,"upload"))
+    allDir = [i  for i in allFiles if os.path.isdir(os.path.join(BinDir,"upload",i)) && i != "path"]
+    return render(request,"vrpg/index.html",{"folder":allDir})
 
 def showInfo(request):
     return render(request,"vrpg/info.html",{})
@@ -104,8 +106,12 @@ def qNodesCov(covFile,nodeVec,covNameFile,ass):
 def showGraph(request):
     
     para = request.POST
-
-    upDir = os.path.join(BinDir,"upload")
+    species = para.get("species")
+    upDir = ""
+    if species == '0':
+        upDir = os.path.join(BinDir,"upload")
+    else:
+        upDir = os.path.join(BinDir,"upload",species)
 
     bEdgeFile = os.path.join(upDir,"edge.bw")
     eIndexFile = os.path.join(upDir,"edge.bdx")
@@ -135,14 +141,26 @@ def showGraph(request):
     if os.path.exists(bEdgeFile) and os.path.exists(eIndexFile) and os.path.exists(rNdDxFile) and os.path.exists(rNdFile) and os.path.exists(nrNdFile) and os.path.exists(mNdDxFile):
         indexFlag = 1
     
+    wsim = para.get("sim")
+    sim = False
+    refSim = False
+    if wsim == "mnr":
+        sim = True
+        refSim = True
+    elif wsim == "mr":
+        sim = True
+        
     mp = minipg.GraphRange(upDir,indexFlag)
-    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y)
+    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,sim,refSim)
     
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     rNodeNum = len(draw_pos)
     
     layout = para.get("lay")
+    if len(draw_node) > 1000:
+        layout = "ex"
+    
     if layout == "co":
         for i in range(rNodeNum ):
             draw_node[i]["x"] = draw_pos[i];
@@ -180,8 +198,12 @@ def showGraph(request):
 @csrf_exempt
 def initGraph(request):
     para = request.POST
-
-    upDir = os.path.join(BinDir,"upload")
+    species = para.get("species")
+    upDir = ""
+    if species == '0':
+        upDir = os.path.join(BinDir,"upload")
+    else:
+        upDir = os.path.join(BinDir,"upload",species)
     
     bEdgeFile = os.path.join(upDir,"edge.bw")
     eIndexFile = os.path.join(upDir,"edge.bdx")
@@ -201,7 +223,7 @@ def initGraph(request):
     sStart = 1
     sEnd = 10000
     if os.path.exists(formFile):
-        sEnd = 300
+        sEnd = 1000
     
     ex = 1000000
     wStart = 50
@@ -213,23 +235,18 @@ def initGraph(request):
     indexFlag = 0
     if os.path.exists(bEdgeFile) and os.path.exists(eIndexFile) and os.path.exists(rNdDxFile) and os.path.exists(rNdFile) and os.path.exists(nrNdFile) and os.path.exists(mNdDxFile):
         indexFlag = 1
-
+    
+    sim = True
+    refSim = False
     mp = minipg.GraphRange(upDir,indexFlag)
-    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y)
+    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,sim,refSim)
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     rNodeNum = len(draw_pos)
     
-    layout = para.get("lay")
-    if layout == "co":
-        for i in range(rNodeNum ):
-            draw_node[i]["x"] = draw_pos[i];
-            draw_node[i]["y"] = y;
-            draw_node[i]["fixed"] = '1';
-    else:
-        for i in range(rNodeNum ):
-            draw_node[i]["fx"] = draw_pos[i];
-            draw_node[i]["fy"] = y;
+    for i in range(rNodeNum ):
+        draw_node[i]["fx"] = draw_pos[i];
+        draw_node[i]["fy"] = y;
             
     draw_edge = mp.draw_edge
     neStart = rNodeNum - 1
