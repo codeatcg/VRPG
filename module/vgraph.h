@@ -196,7 +196,7 @@ public:
     std::vector<std::string> hLinks;
     std::vector<char> hDir;
     
-    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY);
+    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,bool sim,bool refSim);
     void edgeWrite(int rangeSize,int ex,int nocross,int nthread);
     
 private:
