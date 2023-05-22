@@ -50,43 +50,42 @@
             </div>
             
             <div class="form-inline mt-2" style="width:1320px">
-                <select id="chrName" class="form-control" style="width:150px"></select>
-                
-                <input id="startPos" value="1" type="number" min="1" class="form-control ml-2" style="width:150px">
+                <select id="chrName" class="form-control" style="width:200px"></select>
+
+                <input id="startPos" value="1" type="number" min="1" class="form-control ml-2" style="width:200px">
                 <span class="mx-2">-</span>
-                <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:150px">
-                
+                <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:200px">
+
                 <button id="go" class="btn btn-primary  ml-2">Go</button>
-                <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.png' %}"></img></button>
+                <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.pnng' %}"></img></button>
                 <button id="mright" class="btn"><img src="{% static 'images/arrowRight3.png' %}"></img></button>
-                
+
                 <button id="zoomIn" class="btn"><img src="{% static 'images/zoomIn2.png' %}"></img></button>
                 <button id="zoomOut" class="btn mr-2"><img src="{% static 'images/zoomOut2.png' %}"></img></button>
-                
-                <label class="ml-3" for="sim">Simplify</label>
-                <select id="sim" class="form-control ml-1">
-                    <option value="mr">non-reference nodes</option>
-                    <option value="mnr">all nodes</option>
-                    <option value="off">non</option>
-                </select>
-                
-                <label class="ml-3" for="centg">Layout</label>
-                <select id="centg" class="form-control ml-1" style="width:120px">
+            </div>
+
+            <div class="form-inline mt-2" style="width:1320px">
+                <label for="centg">Layout</label>
+                <select id="centg" class="form-control ml-1" style="width:150px">
                     <option value="sq">squeezed</option>
                     <option value="ex">expanded</option>
                     <option value="co">cola</option>
                 </select>
-            </div>
-            
-            <div class="form-inline mt-2" style="width:1320px">
-                <label for="ass">Highlight</label>
-                <select id="ass" class="form-control ml-1" style="width:200px"></select>
-                
-                <button id="stopAni" class="btn btn-primary ml-3">Stop Animation</button>
+
+                <label class="ml-3" for="sim">Simplify</label>
+                <select id="sim" class="form-control ml-1" style="width:150px">
+                    <option value="mr">non-ref nodes</option>
+                    <option value="mnr">all nodes</option>
+                    <option value="off">none</option>
+                </select>
+
+                <label class="ml-3" for="ass">Highlight</label>
+                <select id="ass" class="form-control ml-1"></select>
+
+                <button id="stopAni" class="btn btn-primary ml-3">&nbsp;&nbsp;Stop Animation&nbsp;&nbsp;</button>
                 <button id="savePlot" class="btn btn-primary ml-3">Save Image (*.svg)</button>
             </div>
-            
-            
+    
             <div id="Range"></div>
             <style>
             .grid-container {
