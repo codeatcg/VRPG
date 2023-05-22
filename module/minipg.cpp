@@ -791,10 +791,10 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
     int s_nid = 0;
     int e_nid = 0;
     NodeType pre_node = 0;
-    unordered_set<NodeType> range_set;
+    unordered_map<NodeType,int> range_set;
     int nx = 0;
     for(NodeType &rnode: rangeNode){
-        range_set.insert(rnode);
+        range_set.emplace(rnode,nx);
         ++nx;
     }
     
@@ -986,6 +986,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                 r_edge_dict.emplace(sym,2);
                             }
                             emp1 = false;
+                        }
                     }
                 }else{
                     if(nRefNode.find(o_node.node) == nRefNode.end()){
