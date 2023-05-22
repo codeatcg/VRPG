@@ -265,9 +265,14 @@ def initGraph(request):
 @csrf_exempt            
 def searchNode(request):
     para = request.POST
-
+    species = para.get("species")
     node = para.get('seg')
-    dbDir = os.path.join(BinDir,"upload")
+    dbDir = ""
+    if species == '0':
+        dbDir = os.path.join(BinDir,"upload")
+    else:
+        dbDir = os.path.join(BinDir,"upload",species)
+    
     dbNodeFile = os.path.join(dbDir,"node.sort.bw")
     dbCovFile = os.path.join(dbDir,"cover.bw")
     assListFile = os.path.join(dbDir,"ass.list")
