@@ -253,7 +253,7 @@
                 function segAnno(d){
                     var seg = drawData.nnames[d];
                     var fData = new FormData();
-                    //fData.append('species',$('#species').val());
+                    fData.append('species',$('#species').val());
                     fData.append('seg',seg);
                     var csrfToken = $("[name='csrfmiddlewaretoken']").val();
                     fData.append('csrfmiddlewaretoken',csrfToken);
@@ -368,7 +368,7 @@
 
             function plotGraph(){
                 var fData = new FormData();
-                //fData.append('species',$('#species').val());
+                fData.append('species',$('#species').val());
                 fData.append('tchr',$('#chrName').val());
                 fData.append('start',$('#startPos').val());
                 fData.append('end',$('#endPos').val());
@@ -416,7 +416,7 @@
                 $('#sim').val("mr");
                 $('#centg').val("sq");
                 var fData = new FormData();
-                //fData.append('species',$('#species').val());
+                fData.append('species',$('#species').val());
                 var csrfToken = $("[name='csrfmiddlewaretoken']").val();
                 fData.append('csrfmiddlewaretoken',csrfToken);
                 fData.append('lay',$('#centg').val());
