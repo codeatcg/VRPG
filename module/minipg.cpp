@@ -749,7 +749,7 @@ void GraphRange::dxAssNode(int assNum,int chrNum,int sStart,int sEnd,map<NEdge,i
     }
 }
 
-void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,bool sim,bool refSim){
+void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,bool sim,bool refSim){
     unordered_map<NodeType,vector<ENode> > iedge;
     unordered_map<NodeType,vector<ENode> > oedge;
     
@@ -799,7 +799,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
     }
     
     map<NEdge,int> r_edge_dict;
-    unordered_map<NodeType,std::vector<ENode> >::iterator it;
+    unordered_map<NodeType,std::vector<ENode> >::iterator it,itx;
     unordered_set<NodeType> subMap;
     int mnx = nx - 1;
     
@@ -815,6 +815,11 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             if(it != oedge.end()){
                 vector<NodeType> tNref;
                 vector<int> deep;
+                vector<char> sign;
+                //
+                char lnrMark = '2',rnrMark = '2';
+                char lstMark = '2',rstMark = '2';
+                char lOri = 'o',rOri = 'o';
 
                 int maxLen = 0;
                 for(ENode &o_node : it->second){
@@ -826,6 +831,8 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                             if(tlen > maxLen){
                                 maxLen = tlen;
                             }
+                            //
+                            sign.push_back(o_node.mark);
                         }
                     }
                 }
@@ -845,11 +852,12 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                 //
                                 aMaxLen = 0;
                             }
-                            if(deep[i] > 10){
+                            if(deep[i] > queryDep){
                                 break;   
                             }
                             
                             it = oedge.find(tNref[i]);
+                            itx = iedge.find(tNref[i]);
                             if(it != oedge.end()){
                                 for(ENode &to_node : it->second){
                                     if(exNode.find(to_node.node) == exNode.end()){
@@ -861,25 +869,34 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                             if(info[to_node.node].len > aMaxLen){
                                                 aMaxLen = info[to_node.node].len;
                                             }
+                                            //
+                                            sign.push_back(sign[i]);
                                         }
                                     }else{
                                         if(range_set.find(to_node.node) != range_set.end()){
                                             int tpoint = range_set[to_node.node];
                                             if(tpoint > rpoint){
                                                 rpoint = tpoint;
+                                                //
+                                                rnrMark = to_node.mark;
+                                                rstMark = sign[i];
+                                                rOri = 'o';
                                             }else{
                                                 if(tpoint < lpoint){
                                                     lpoint = tpoint;
+                                                    //
+                                                    lnrMark = to_node.mark;
+                                                    lstMark = sign[i];
+                                                    lOri = 'o';
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-
-                            it = iedge.find(tNref[i]);
-                            if(it != iedge.end()){
-                                for(ENode &to_node : it->second){
+                            //
+                            if(itx != iedge.end()){
+                                for(ENode &to_node : itx->second){
                                     if(exNode.find(to_node.node) == exNode.end()){
                                         if(tset.find(to_node.node) == tset.end()){
                                             tNref.push_back(to_node.node);
@@ -889,15 +906,24 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                             if(info[to_node.node].len > aMaxLen){
                                                 aMaxLen = info[to_node.node].len;
                                             }
+                                            //
+                                            sign.push_back(sign[i]);
                                         }
                                     }else{
                                         if(range_set.find(to_node.node) != range_set.end()){
                                             int tpoint = range_set[to_node.node];
                                             if(tpoint > rpoint){
                                                 rpoint = tpoint;
+                                                rnrMark = to_node.mark;
+                                                rstMark = sign[i];
+                                                rOri = 'i';
                                             }else{
                                                 if(tpoint < lpoint){
                                                     lpoint = tpoint;
+                                                    //
+                                                    lnrMark = to_node.mark;
+                                                    lstMark = sign[i];
+                                                    lOri = 'i';
                                                 }
                                             }
                                         }
@@ -915,27 +941,86 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                 
                 if(maxLen < 50){
                     int rlen = 0,llen = 0;
+                    bool inv = false;
+                    int lStart = lpoint + 1,rEnd = rpoint;
                     if(point > lpoint){
-                        for(int j = lpoint + 1; j < point; ++j){
-                            llen += info[rangeNode[j]].len;
-                        }
-                        if(llen < 50){
-                            for(int j = point + 1; j < rpoint; ++j){
-                                rlen += info[rangeNode[j]].len;
+                        
+                        if(lstMark < '4'){
+                            inv = true;
+                        }else{
+                            if(lOri == 'o'){
+                                if(lnrMark == '2' || lnrMark == '4'){
+                                    lStart = lpoint;
+                                }
+                            }else{
+                                if(lnrMark == '4' || lnrMark == '5'){
+                                    lStart = lpoint;
+                                }
                             }
-                            if(rlen < 50){
-                                for(auto &xnode : tNref){
-                                    subMap.insert(xnode);
+                        }
+
+                        if(! inv){
+                            for(int j = lStart; j < point; ++j){
+                                llen += info[rangeNode[j]].len;
+                            }
+                            if(llen < 50){
+                                if(rpoint > point){
+                                    if(rstMark < '4'){
+                                        if(rOri == 'o'){
+                                            if(rnrMark == '3' || rnrMark == '5'){
+                                                rEnd = rpoint + 1;
+                                            }
+                                        }else{
+                                            if(rnrMark == '2' || rnrMark == '3'){
+                                                rEnd = rpoint + 1;
+                                            }
+                                        }
+                                    }else{
+                                        inv = true;
+                                    }
+                                    //
+                                    if(! inv){
+                                        for(int j = point + 1; j < rEnd; ++j){
+                                            rlen += info[rangeNode[j]].len;
+                                        }
+                                        if(rlen < 50){
+                                            for(auto &xnode : tNref){
+                                                subMap.insert(xnode);
+                                            }
+                                        }
+                                    }
+                                }else{
+                                    for(auto &xnode : tNref){
+                                        subMap.insert(xnode);
+                                    }
                                 }
                             }
                         }
                     }else{
-                        for(int j = lpoint + 1; j < rpoint; ++j){
-                            rlen += info[rangeNode[j]].len;
-                        }
-                        if(rlen < 50){
-                            for(auto &xnode : tNref){
-                                subMap.insert(xnode);
+                        if(rpoint > point){
+                            if(rstMark < '4'){
+                                if(rOri == 'o'){
+                                    if(rnrMark == '3' || rnrMark == '5'){
+                                        rEnd = rpoint + 1;
+                                    }
+                                }else{
+                                    if(rnrMark == '2' || rnrMark == '3'){
+                                        rEnd = rpoint + 1;
+                                    }
+                                }
+                            }else{
+                                inv = true;
+                            }
+                            //
+                            if(! inv){
+                                for(int j = point + 1; j < rEnd; ++j){
+                                    rlen += info[rangeNode[j]].len;
+                                }
+                                if(rlen < 50){
+                                    for(auto &xnode : tNref){
+                                        subMap.insert(xnode);
+                                    }
+                                }
                             }
                         }
                     }
@@ -1695,7 +1780,7 @@ void GraphRange::parseRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int
     }
 }
 
-void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int sStart,int sEnd,int ex,int nocross,vector<NEdge> &chrRmEdge,unordered_map<NodeType,vector<ENode> > &iedge,unordered_map<NodeType,vector<ENode> > &oedge,set<NEdge> &r_edge_dict,unordered_set<NodeType> &nRefNode){
+void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int sStart,int sEnd,int ex,int nocross,int storeDep,vector<NEdge> &chrRmEdge,unordered_map<NodeType,vector<ENode> > &iedge,unordered_map<NodeType,vector<ENode> > &oedge,set<NEdge> &r_edge_dict,unordered_set<NodeType> &nRefNode){
     vector<NodeType> rangeNode;
     unordered_set<NodeType> exNode;
     parseRange(chrRnode,arcVec,sStart,sEnd,ex,rangeNode,exNode);
@@ -1741,7 +1826,7 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
             if(! tNref.empty()){
                 size_t i = 0;
                 while(i < tNref.size()){
-                    if(deep[i] > 10){
+                    if(deep[i] > storeDep){
                         break;   
                     }
                     it = oedge.find(tNref[i]);
@@ -1813,7 +1898,7 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
             if(! tNref.empty()){
                 size_t i = 0;
                 while(i < tNref.size()){
-                    if(deep[i] > 10){
+                    if(deep[i] > storeDep){
                         break;   
                     }
                     
@@ -2344,7 +2429,7 @@ void GraphRange::indexPath(string &assFile,string &eIndexFile,string &bEdgeFile,
 }
 
 void GraphRange::oneTask(unordered_map<NodeType,vector<ENode> > &iedge,unordered_map<NodeType,vector<ENode> > &oedge,vector<RNode> &chrRnode,vector<OneRange> &acrVec,vector<NEdge> &chrRmEdge,
-             int ex,int nocross,int frStart,int frEnd,ofstream &tndfh,ofstream &tbfh,int *frNrefNum,int *frEdgeNum
+             int ex,int nocross,int frStart,int frEnd,int storeDep,ofstream &tndfh,ofstream &tbfh,int *frNrefNum,int *frEdgeNum
     ){
     unordered_map<NodeType,vector<ENode> > iRanEdge;
     unordered_map<NodeType,vector<ENode> > oRanEdge;
@@ -2357,9 +2442,9 @@ void GraphRange::oneTask(unordered_map<NodeType,vector<ENode> > &iedge,unordered
             iRanEdge = iedge;
             oRanEdge = oedge;
             //
-            edgeRange(chrRnode,acrVec,acrVec[k].ranStart,acrVec[k].ranEnd,ex,nocross,chrRmEdge,iRanEdge,oRanEdge,r_edge_dict,nRefNode);
+            edgeRange(chrRnode,acrVec,acrVec[k].ranStart,acrVec[k].ranEnd,ex,nocross,storeDep,chrRmEdge,iRanEdge,oRanEdge,r_edge_dict,nRefNode);
         }else{
-            edgeRange(chrRnode,acrVec,acrVec[k].ranStart,acrVec[k].ranEnd,ex,nocross,chrRmEdge,iedge,oedge,r_edge_dict,nRefNode);
+            edgeRange(chrRnode,acrVec,acrVec[k].ranStart,acrVec[k].ranEnd,ex,nocross,storeDep,chrRmEdge,iedge,oedge,r_edge_dict,nRefNode);
         }
         //
         int tnum = nRefNode.size();
@@ -2383,10 +2468,12 @@ void GraphRange::oneTask(unordered_map<NodeType,vector<ENode> > &iedge,unordered
     }
 }
 
-void GraphRange::edgeWrite(int rangeSize,int ex,int nocross,int nthread){
+void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep){
     
     string rndDxFile = upDir + "/node.ref.bdx";
     string rndFile = upDir + "/node.ref.bw";
+    
+    string nspecFile = upDir + "/node.nsp.ref.bw";
     
     string mgDxFile = upDir + "/node.merge.bdx";
     string nrdFile = upDir + "/node.nonref.bw";
@@ -2399,6 +2486,15 @@ void GraphRange::edgeWrite(int rangeSize,int ex,int nocross,int nthread){
     string bEdgeFile = upDir + "/edge.bw";
     string eIndexFile = upDir + "/edge.bdx";
     
+    string depFile = upDir + "/index.dep";
+    ofstream xdep(depFile.c_str());
+    if(! xdep){
+        cerr<<"Error: file open failed. "<<depFile<<endl;
+        exit(1);
+    }
+    xdep<<storeDep<<endl;
+    xdep.close();
+    
     ofstream ndfh(nrNodeFile.c_str());
     if(! ndfh){
         cerr<<"Error: file open failed. "<<nrNodeFile<<endl;
@@ -2410,7 +2506,6 @@ void GraphRange::edgeWrite(int rangeSize,int ex,int nocross,int nthread){
         cerr<<"Error: file open failed. "<<nrNumFile<<endl;
         exit(1);
     }
-    
     
     ofstream bfh(bEdgeFile.c_str());
     if(! bfh){
@@ -2455,12 +2550,34 @@ void GraphRange::edgeWrite(int rangeSize,int ex,int nocross,int nthread){
         cerr<<"Error: file open failed. "<<chrFile<<endl;
         exit(1);
     }
-    while(getline(cfh,chrLine)){
-        int tpos = chrLine.find("\t");
-        string tchr = chrLine.substr(0,tpos);
-        refChrMap.emplace(tchr,pos);
-        chrVec.push_back(tchr);
-        ++pos;
+    //
+    if(spChrFile != "00000000"){
+        set<string> speSet;
+        ifstream spfh(spChrFile.c_str());
+        if(! spfh){
+            cerr<<"Error: file containing specific chromosomes for indexing open failed. "<<spChrFile<<endl;
+            exit(1);
+        }
+        while(getline(spfh,chrLine)){
+            speSet.insert(chrLine);
+        }
+        spfh.close();
+        //
+        while(getline(cfh,chrLine)){
+            int tpos = chrLine.find("\t");
+            string tchr = chrLine.substr(0,tpos);
+            if(speSet.find(tchr) != speSet.end()){
+                refChrMap.emplace(tchr,pos);
+            }
+            ++pos;
+        }
+    }else{
+        while(getline(cfh,chrLine)){
+            int tpos = chrLine.find("\t");
+            string tchr = chrLine.substr(0,tpos);
+            refChrMap.emplace(tchr,pos);
+            ++pos;
+        }
     }
     cfh.close();
     if(refChrMap.empty()){
@@ -2469,7 +2586,7 @@ void GraphRange::edgeWrite(int rangeSize,int ex,int nocross,int nthread){
     }
     
     //
-    splitRange(rangeSize,chrMap,refChrMap,rndDxFile,rndFile,snFile);
+    splitRange(rangeSize,chrMap,refChrMap,rndDxFile,rndFile,nspecFile,snFile);
     //
     vector<NEdge> resEdge;
     //
@@ -2588,7 +2705,7 @@ void GraphRange::edgeWrite(int rangeSize,int ex,int nocross,int nthread){
                 }
                 frEnd = frStart + etask;
             }
-            thVec.push_back(thread(&GraphRange::oneTask,this,ref(iedge),ref(oedge),ref(chrRnode),ref(acrVec),ref(chrRmEdge),ex,nocross,frStart,frEnd,ref(nrFhVec[n]),ref(edFhVec[n]),frNrefNum,frEdgeNum));
+            thVec.push_back(thread(&GraphRange::oneTask,this,ref(iedge),ref(oedge),ref(chrRnode),ref(acrVec),ref(chrRmEdge),ex,nocross,frStart,frEnd,storeDep,ref(nrFhVec[n]),ref(edFhVec[n]),frNrefNum,frEdgeNum));
         }
 
         for(auto &th : thVec){

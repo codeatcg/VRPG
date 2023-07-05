@@ -25,6 +25,7 @@ parser.add_argument('--graphOpt',help="minigraph options (except '-cxggs -t') to
 
 parser.add_argument('--index',help="Index the graph to speed up data visualization",action="store_true",default=False)
 parser.add_argument('--range',help="Range size for indexing the graph, by default: 2000",type=int,default=2000)
+parser.add_argument('--xDep',help="Search depth when creating graph indexes, by default: 20",type=int,default=20)
 
 paras = parser.parse_args()
 
@@ -385,8 +386,9 @@ def indexGraph(outDir,nthread):
     upDir = os.path.join(outDir,"upload")
     mp = minipg.GraphRange(upDir,0)
     rangeSize = paras.range
-    ex = 1000000
-    mp.edgeWrite(rangeSize,ex,0,nthread)    
+    storeDep = paras.xDep
+    spChrFile = "00000000"
+    mp.edgeWrite(spChrFile,rangeSize,ex,0,nthread,storeDep)   
  
 def miniMain():
     sep = paras.sep

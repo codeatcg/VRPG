@@ -196,8 +196,8 @@ public:
     std::vector<std::string> hLinks;
     std::vector<char> hDir;
     
-    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,bool sim,bool refSim);
-    void edgeWrite(int rangeSize,int ex,int nocross,int nthread);
+    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,bool sim,bool refSim);
+    void edgeWrite(std::string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep);
     
 private:
     std::string nodeFile,edgeFile,pathDir,assFile,chrFile,comChrFile,sepFile;
@@ -225,10 +225,10 @@ private:
     void getChrRmEdge(std::unordered_set<int> &ntNode,std::vector<NEdge> &chrRmEdge);
     
     void parseRange(std::vector<RNode> &chrRnode,std::vector<OneRange> &arcVec,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_set<NodeType> &exNode);
-    void edgeRange(std::vector<RNode> &chrRnode,std::vector<OneRange> &arcVec,int sStart,int sEnd,int ex,int nocross,std::vector<NEdge> &chrRmEdge,std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge,std::set<NEdge> &r_edge_dict,std::unordered_set<NodeType> &nRefNode);
+    void edgeRange(std::vector<RNode> &chrRnode,std::vector<OneRange> &arcVec,int sStart,int sEnd,int ex,int nocross,int storeDep,std::vector<NEdge> &chrRmEdge,std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge,std::set<NEdge> &r_edge_dict,std::unordered_set<NodeType> &nRefNode);
     
     void oneTask(std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge,std::vector<RNode> &chrRnode,std::vector<OneRange> &acrVec,std::vector<NEdge> &chrRmEdge,
-             int ex,int nocross,int frStart,int frEnd,std::ofstream &tndfh,std::ofstream &tbfh,int *frNrefNum,int *frEdgeNum
+             int ex,int nocross,int frStart,int frEnd,int storeDep,std::ofstream &tndfh,std::ofstream &tbfh,int *frNrefNum,int *frEdgeNum
     );
     
     void pthTask(std::unordered_map<NodeType,std::vector<int> > &ndCutMap,std::vector<RanPos> &allpos,char *header,int dxByte,int frStart,int frEnd,std::vector<std::ifstream> &pthVec,std::vector<std::ofstream> &xpthVec,std::vector<std::ofstream> &wpthVec);

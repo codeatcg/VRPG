@@ -149,9 +149,15 @@ def showGraph(request):
         refSim = True
     elif wsim == "mr":
         sim = True
-        
+    
+    queryDep = 10
+    depFile = os.path.join(upDir,"index.dep")
+    if os.path.exists(depFile):
+        with open(depFile) as dh:
+            queryDep = int(dh.read().strip())
+    
     mp = minipg.GraphRange(upDir,indexFlag)
-    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,sim,refSim)
+    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,sim,refSim)
     
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
@@ -238,8 +244,15 @@ def initGraph(request):
     
     sim = True
     refSim = False
+    
+    queryDep = 10
+    depFile = os.path.join(upDir,"index.dep")
+    if os.path.exists(depFile):
+        with open(depFile) as dh:
+            queryDep = int(dh.read().strip())
+    
     mp = minipg.GraphRange(upDir,indexFlag)
-    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,sim,refSim)
+    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,sim,refSim)
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     rNodeNum = len(draw_pos)

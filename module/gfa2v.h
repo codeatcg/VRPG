@@ -79,11 +79,11 @@ int psRchrPath(std::string &refPath,std::string &fullName,std::unordered_map<int
                 
 void psNPath(std::string &nrPath,std::string &ass,std::unordered_set<int> &flipSet,std::map<NEdge,Jnode> &jNeoMap,std::unordered_map<int,int> &tmap,std::unordered_map<int,int> &mNodeLen,std::unordered_set<int> &noutSet,std::ofstream &pfh,std::ofstream &nfh);
 
-void psAllPath(char *rfChrFile,std::string &tmpFolder,std::string &assFile,std::string &sepStr,int &neoID,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,
+void psAllPath(std::string &tmpFolder,std::string &assFile,std::string &sepStr,int &neoID,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,
                 std::ofstream &nfh,std::ofstream &efh,std::ofstream &covfh,std::ofstream &xcovfh,std::ofstream &cfh,std::string &pathDir
                );
                
-void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,int ex,bool index,int nocross,int nthread,char *outDir);
+void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,int ex,bool index,int nocross,int nthread,int storeDep,char *outDir);
 void g2v_usage();
 
 

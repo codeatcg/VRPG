@@ -883,22 +883,11 @@ void psNPath(string &nrPath,string &ass,unordered_set<int> &flipSet,map<NEdge,Jn
     }
 }
  
-void psAllPath(char *rfChrFile,string &tmpFolder,string &assFile,string &sepStr,int &neoID,unordered_map<int,int> &mNodeLen,map<NEdge,int> &edgeMap,map<NEdge,int> &jumpMap,ofstream &nfh,ofstream &efh,ofstream &covfh,ofstream &xcovfh,ofstream &cfh,string &pathDir){
+void psAllPath(string &tmpFolder,string &assFile,string &sepStr,int &neoID,unordered_map<int,int> &mNodeLen,map<NEdge,int> &edgeMap,map<NEdge,int> &jumpMap,ofstream &nfh,ofstream &efh,ofstream &covfh,ofstream &xcovfh,ofstream &cfh,string &pathDir){
     
     string gfaLine,chrLine;
     stringstream strStream;
     string fullName,path;
-    //
-    set<string> resChr;
-    bool flag = false;
-    if(rfChrFile != nullptr){
-        flag = true;
-        ifstream rfh(rfChrFile);
-        while(getline(rfh,chrLine)){
-            resChr.insert(chrLine);
-        }   
-        rfh.close();
-    }
     //
     unordered_set<int> refNodeSet;
     unordered_set<int> flipSet;
@@ -950,11 +939,6 @@ void psAllPath(char *rfChrFile,string &tmpFolder,string &assFile,string &sepStr,
             tpos = psRchrPath(path,fullName,mNodeLen,edgeMap,jumpMap,neoID,refNodeSet,flipSet,rEset,rJset,jNeoMap,rCovMap,nfh,efh,fpfh);
         }
         //
-        if(flag){
-            if(resChr.find(chrName) == resChr.end()){
-                continue;
-            }
-        }
         cfh<<tName<<"\t1\t"<<tpos<<endl;
     }
     chrSet.clear();
@@ -1345,7 +1329,7 @@ void psAllPath(char *rfChrFile,string &tmpFolder,string &assFile,string &sepStr,
     }
 }
 
-void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,int ex,bool index,int nocross,int nthread,char *outDir){
+void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,int ex,bool index,int nocross,int nthread,int storeDep,char *outDir){
     
     string sOutDir = outDir;
     string upFolder = sOutDir + "/upload";
@@ -1453,7 +1437,7 @@ void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,in
             cerr<<"Error: chromosome list file open failed. "<<chrListFile<<endl;
             exit(1);
         }
-        psAllPath(rfChrFile,tmpFolder,assListFile,sepStr,maxNode,mNodeLen,edgeMap,jumpMap,nfh,efh,covfh,xcovfh,cfh,pathDir);
+        psAllPath(tmpFolder,assListFile,sepStr,maxNode,mNodeLen,edgeMap,jumpMap,nfh,efh,covfh,xcovfh,cfh,pathDir);
         nfh.close();
         efh.close();
         covfh.close();
@@ -1469,7 +1453,11 @@ void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,in
     if(index){
         int flag = 0;
         GraphRange gr(upFolder,flag);
-        gr.edgeWrite(range,ex,nocross,nthread);
+        string spChrFile = "00000000";
+        if(rfChrFile != nullptr){
+            spChrFile = rfChrFile;
+        }
+        gr.edgeWrite(spChrFile,range,ex,nocross,nthread,storeDep);
     }
 }
 
@@ -1477,13 +1465,14 @@ void g2v_usage(){
     cout<<"Usage: gfa2view --GFA input.gfa --index --ref REF#HAP --outDir output_dir"<<endl;
     cout<<"--sep     <String>   Delimiter between sample and haplotype names, by default: #"<<endl;
     cout<<"--GFA     <File>     Input GFA file"<<endl;
-    cout<<"--ref     <String>   Reference name (assembly_name + delimiter + haplotype)"<<endl;
-    cout<<"--refChr  <File>     When index the graph only consider reference chromosomes (or contig) contained in this file (saving time for situation that there are too many contigs)."<<endl; 
+    cout<<"--ref     <String>   Reference name (sample_name + delimiter + haplotype)"<<endl;
+    cout<<"--refChr  <File>     When indexing the graph only consider reference chromosomes or contigs contained in this file (one chromosome or contig per line)."<<endl; 
     cout<<"--outDir  <Dir>      Output directory"<<endl;
-    cout<<"--index              Index the graph to speed up data visualization"<<endl;
-    cout<<"--range   <Int>      number of reference nodes in a chunk, which is used for indexing the graph, by default: 2000"<<endl;
+    cout<<"--index              Index the graph for rapid access"<<endl;
+    cout<<"--xDep    <Int>      Search depth when creating graph indexes, by default: 10"<<endl;
+    cout<<"--range   <Int>      Number of reference nodes in a chunk, which is used for indexing the graph, by default: 2000"<<endl;
     cout<<"--cross              There are crosses between reference chromosomes. It will take more running time."<<endl;
-    cout<<"--thread  <Int>      number of threads."<<endl;
+    cout<<"--thread  <Int>      Number of threads."<<endl;
     cout<<"--help               "<<endl;
 }
 
@@ -1492,6 +1481,7 @@ int main(int argc,char **argv){
     char *csep = p; 
     char *gfaFile = nullptr, *outDir = nullptr, *refName = nullptr, *rfChrFile = nullptr;
     bool gIndex = false;
+    int storeDep = 10;
     int range = 2000;
     int ex = 1000000;
     int nocross = 1;
@@ -1553,6 +1543,13 @@ int main(int argc,char **argv){
                 return 1;
             }
             nthread = atoi(argv[i]);
+        }else if(strcmp(argv[i],"--xDep") == 0 || strcmp(argv[i],"-xDep") == 0){
+            ++i;
+            if(i == argc){
+                cerr<<"Error: --xDep is used but there is no value"<<endl;
+                return 1;
+            }
+            storeDep = atoi(argv[i]);
         }else if(strcmp(argv[i],"--help") == 0 || strcmp(argv[i],"-help") == 0){
             g2v_usage();
             return 1;
@@ -1577,7 +1574,7 @@ int main(int argc,char **argv){
         cerr<<"Error: there is no output directory (--outDir)"<<endl;
         return 1;
     }
-    gfa2view(rfChrFile,gfaFile,refName,csep,range,ex,gIndex,nocross,nthread,outDir);
+    gfa2view(rfChrFile,gfaFile,refName,csep,range,ex,gIndex,nocross,nthread,storeDep,outDir);
 }
 
 
