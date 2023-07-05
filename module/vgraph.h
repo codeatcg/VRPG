@@ -221,7 +221,7 @@ private:
     
     //
     void splitRange(int rangeNum,std::unordered_map<std::string,int> &chrMap,std::unordered_map<std::string,int> &refChrMap,std::string &rndDxFile,std::string &rndFile,std::string &nspecFile,std::string &snFile);
-    void getNrefEdge(std::string &rndFile,string &nspecFile,std::vector<NEdge> &resEdge);
+    void getNrefEdge(std::string &rndFile,std::string &nspecFile,std::vector<NEdge> &resEdge);
     void getChrRmEdge(std::unordered_set<int> &ntNode,std::vector<NEdge> &chrRmEdge);
     
     void parseRange(std::vector<RNode> &chrRnode,std::vector<OneRange> &arcVec,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_set<NodeType> &exNode);
