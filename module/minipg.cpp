@@ -1053,7 +1053,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                     vlen += info[rangeNode[k]].len;
                                 }
                                 if(vlen < 50){
-                                    flag = false;
+                                    if(o_node.mark == '2'){
+                                        flag = false;
+                                    }
                                 }
                             }else{
                                 int vlen = 0;
@@ -1061,7 +1063,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                     vlen += info[rangeNode[k]].len;
                                 }
                                 if(vlen < 50){
-                                    flag = false;
+                                    if(o_node.mark == '5'){
+                                        flag = false;
+                                    }
                                 }
                             }
                         }
@@ -1094,7 +1098,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             if(! tNref.empty()){
                 size_t i = 0;
                 while(i < tNref.size()){
-                    if(deep[i] > 10){
+                    if(deep[i] > queryDep){
                         break;   
                     }
                     
@@ -1162,7 +1166,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                         vlen += info[rangeNode[k]].len;
                                     }
                                     if(vlen < 50){
-                                        flag = false;
+                                        if(o_node.mark == '5'){
+                                            flag = false;
+                                        }
                                     }
                                 }else{
                                     int vlen = 0;
@@ -1170,7 +1176,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                         vlen += info[rangeNode[k]].len;
                                     }
                                     if(vlen < 50){
-                                        flag = false;
+                                        if(o_node.mark == '2'){
+                                            flag = false;
+                                        }
                                     }
                                 }
                                 
@@ -1201,7 +1209,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             if(! tNref.empty()){
                 size_t i = 0;
                 while(i < tNref.size()){
-                    if(deep[i] > 10){
+                    if(deep[i] > queryDep){
                         break;   
                     }
                     it = oedge.find(tNref[i]);                    
