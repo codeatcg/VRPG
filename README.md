@@ -1,14 +1,13 @@
 # VRPG
-an interactive web viewer for reference pangenome graphs
+an interactive web viewer for reference-projected pangenome graph
 
 |  |  |
 | --- | --- |
-| <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window2.png" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description.png" width=400px/> |
-
-Figrue on the left was based on vrpg-v0.1.1 and the particular assembly path was not highlighted by arrow lines. Figrues on the right were picked from drawings by vrpg-v0.1.2.
+| <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window.png" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description.png" width=400px/> |
 
 # Description  
-VRPG is an interactive web viewer for pangenome graph. It was initially designed to navigate the whole pangenome graph in reference Graph Fragment Assembly (<a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a>) format. Now Graph Fragment Assembly (<a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFA v1.x</a>) format is also supported. This is implemented by converting the GFA format to a format similar to rGFA. VRPG is fast, even for large and complex human pangenome graph generated with many whole genome assemblies. The reference nodes are aligned along the center line of the view window and surrounded by non-reference nodes. The reference line that consists of a series of reference nodes holds the stable coordinate system, just like the traditional linear reference. It’s beneficial to scanning all kinds of variations in the graph and relating them to biological function from previous studies based on a single linear reference. A website shipping four pangenome graphs (one for yeast and three for human) is available at https://www.evomicslab.org/app/vrpg/. The Saccharomyces cerevisiae pangenome graph was generated with 163 assemblies and The three Homo sapiens pangenome graphs with 90 whole genome assemblies for each were constructed by <a href="https://humanpangenome.org/">HPRC</a>  by three different pipelines (Minigraph, Minigraph-CACTUS and PGGB). Users can also deploy the web application and view their own data.  
+
+VRPG is an interactive web viewer for reference-projected pangenome graph. It naturally supports graphs in reference Graph Fragment Assembly (<a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a>) format and for graphs in Graph Fragment Assembly (<a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a>) format VRPG provides a command-line tool named gfa2view to transform the GFA files to a rGFA-like format. VRPG implements a block index system to support navigating the large and complex pangenome upon hundreds of whole genome assemblies in real time. The information about coordinate and copy number of each segment among the graph was stored in an efficient way and can be queried with almost no delay. VRPG aligns the reference nodes along the center line of the viewport, which make the reference genome easy to be recognized. VRPG also provides an intuitive way for genome comparison by highlighting the path of a particular assembly and its orientation on the rendered graph. A website shipping four pangenome graphs (one for yeast and three for human) is available at https://www.evomicslab.org/app/vrpg/. The Saccharomyces cerevisiae pangenome graph was generated using 163 assemblies and The three Homo sapiens pangenome graphs were constructed by <a href="https://humanpangenome.org/">HPRC</a>  by three different pipelines (Minigraph, Minigraph-CACTUS and PGGB) upon the same dataset with 90 whole genome assemblies. Users can also deploy the web application and view their own data.  
 
 **Note:** the released version 0.1.2 is not the latest. For graph in GFA format the overlap field in link line (overlap between segments)  should be specified (in graphs created by Minigraph-CACTUS and PGGB the overlap is generally specified as 0M), or the value will be set to 0 by VRPG-gfa2view. Although whether the overlap is specified doesn't affect the visualization of the graph it may affect the determination of the coordinate of the segment. 
 
@@ -33,7 +32,7 @@ make
 
 # Prepare your data  
 
-The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed.  
+The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed. When indexing the graph users can define the search depth (VRPG version > 0.12) by option ‘--xDep’. In general, the default value can work well. A small value for this option may cause some big bubbles on the rendered graph uncompleted. Owing to the linearity of the reference genome on graph rendered by VRPG the uncompleted bubble and its approximate location relative to the reference genome can still be recognized generally. 
 
 ## rGFA format graph  
 
@@ -75,11 +74,22 @@ For graphs in GFA format that can be processed by VRPG segment names should be n
 ```
 module/gfa2view --GFA in.gfa --ref refName --outDir output_dir --index --range 2000 --thread 10
 
+# gfa2view is flexible. Users can also split the process into two steps.
+# step 1: transform and calculate coverage
+# This step can’t be paralleled.
+module/gfa2view --GFA in.gfa --ref refName --outDir output_dir
+
+# step 2: index
+# This step can be paralleled.
+module/gfa2view --outDir output_dir --index --range 2000 --thread 10 
+
 ```
+
+By two steps users can test different options and parameters to index the graph. But note that the previous indexing results will be covered.
+
 **Note**, For the current version of 'gfa2view' memory consumption is proportional to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
 
-If only a particular set of reference chromosomes or contigs are considered for view the option ‘--refChr’ can be used to save running time. For this option a file containing a reference chromosome or contig name (not contain sample name or haplotype name) per line is required.  
-
+If only a particular set of reference chromosomes or contigs are considered for view the option ‘--refChr’ can be used to save running time. The option only affects the process of indexing. If this option is specified, a file containing the expected chromosomes/contigs with one chromosome/contig per line is required.   
 
 # Execution  
 ## Local server or personal computer with Linux/Ubuntu operating system  
@@ -122,6 +132,9 @@ If you are familiar with nginx or apache you can also deploy VRPG by using any o
 bedtools intersect -wa -wb -a node.pos -b genome.gff3
 ``` 
   
+# More about this work 
+
+https://www.biorxiv.org/content/10.1101/2023.01.20.524991v3
 
 
  
