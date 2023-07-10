@@ -2601,6 +2601,7 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
         exit(1);
     }
     //
+    string loadChrFile = upDir + "/load.chr.list";
     if(spChrFile != "00000000"){
         set<string> speSet;
         ifstream spfh(spChrFile.c_str());
@@ -2613,20 +2614,26 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
         }
         spfh.close();
         //
+        ofstream ldfh(loadChrFile.c_str());
         while(getline(cfh,chrLine)){
             int tpos = chrLine.find("\t");
             string tchr = chrLine.substr(0,tpos);
             if(speSet.find(tchr) != speSet.end()){
                 refChrMap.emplace(tchr,pos);
+                ldfh<<chrLine<<endl;
             }
             ++pos;
         }
+        ldfh.close();
     }else{
         while(getline(cfh,chrLine)){
             int tpos = chrLine.find("\t");
             string tchr = chrLine.substr(0,tpos);
             refChrMap.emplace(tchr,pos);
             ++pos;
+        }
+        if(access(loadChrFile.c_str(),F_OK) == 0){
+            remove(loadChrFile.c_str());
         }
     }
     cfh.close();
