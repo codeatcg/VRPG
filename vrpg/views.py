@@ -121,7 +121,7 @@ def showGraph(request):
     mNdDxFile = os.path.join(upDir,"node.merge.bdx")
 
     formFile = os.path.join(upDir,"form.info")
-    chrListFile = os.path.join(upDir,"chr.list")
+    chrListFile = os.path.join(upDir,"load.chr.list")
     assListFile = os.path.join(upDir,"ass.list")
     
     
@@ -135,7 +135,13 @@ def showGraph(request):
     y = 300
     
     ass = para.get("ass")
-    chrList = readChr(chrListFile)
+    chrList = {}
+    if os.path.exists(chrListFile):
+        chrList = readChr(chrListFile)
+    else:
+        chrListFile = os.path.join(upDir,"chr.list")
+        chrList = readChr(chrListFile)
+        
     assList = readAss(assListFile)
     indexFlag = 0
     if os.path.exists(bEdgeFile) and os.path.exists(eIndexFile) and os.path.exists(rNdDxFile) and os.path.exists(rNdFile) and os.path.exists(nrNdFile) and os.path.exists(mNdDxFile):
@@ -219,10 +225,16 @@ def initGraph(request):
     mNdDxFile = os.path.join(upDir,"node.merge.bdx")
 
     formFile = os.path.join(upDir,"form.info")
-    chrListFile = os.path.join(upDir,"chr.list")
+    chrListFile = os.path.join(upDir,"load.chr.list")
     assListFile = os.path.join(upDir,"ass.list")
     
-    chrList = readChr(chrListFile)
+    chrList = {}
+    if os.path.exists(chrListFile):
+        chrList = readChr(chrListFile)
+    else:
+        chrListFile = os.path.join(upDir,"chr.list")
+        chrList = readChr(chrListFile)
+    
     assList = readAss(assListFile)
     
     sChr = chrList["nameList"][0]
