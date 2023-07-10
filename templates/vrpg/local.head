@@ -1,0 +1,13 @@
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <link rel="stylesheet" type="text/css" href="{% static 'bootstrap-4.3.1-dist/css/bootstrap.min.css' %}">
+        
+        <script src="{% static 'jquery-3.2.1.min.js' %}"></script>
+        <script src="{% static 'umd/popper.min.js' %}"></script>
+        <script src="{% static 'bootstrap-4.3.1-dist/js/bootstrap.min.js' %}"></script>
+
+        <script src="{% static 'lodash.min.js' %}"></script>
+        <script src="{% static 'd3.min.js' %}"></script>
+        <script src="{% static 'FileSaver.js' %}"></script>
+        <script src="{% static 'cola.min.js' %}"></script>
