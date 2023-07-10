@@ -28,11 +28,17 @@ git clone https://github.com/codeatcg/VRPG --recursive
 cd VRPG/module
 make
 
+# By default the javascript packages that VRPG depends on are loaded from CDN. Users can also host the packages locally. 
+python create.local.py
+sh host.jslib.local.sh local
+# switch to load packages from CDN
+sh host.jslib.local.sh cdn
+
 ```
 
 # Prepare your data  
 
-The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed. When indexing the graph users can define the search depth (VRPG version > 0.12) by option ‘--xDep’. In general, the default value can work well. A small value for this option may cause some big bubbles on the rendered graph uncompleted. Owing to the linearity of the reference genome on graph rendered by VRPG the uncompleted bubble and its approximate location relative to the reference genome can still be recognized generally. 
+The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed. When indexing the graph users can define the search depth (VRPG version > 0.1.2) by option ‘--xDep’. In general, the default value can work well. A small value for this option may cause some big bubbles on the rendered graph uncompleted. Owing to the linearity of the reference genome on graph rendered by VRPG the uncompleted bubble and its approximate location relative to the reference genome can still be recognized generally. 
 
 ## rGFA format graph  
 
@@ -85,7 +91,7 @@ module/gfa2view --outDir output_dir --index --range 2000 --thread 10
 
 ```
 
-By two steps users can test different options and parameters to index the graph. But note that the previous indexing results will be covered.
+By two steps users can test different options and parameters to index the graph, while avoiding to transform the graph repetitively. But note that the previous indexing results will be covered.
 
 **Note**, For the current version of 'gfa2view' memory consumption is proportional to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
 
