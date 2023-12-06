@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "gfa2v.h"
+#include "gz.h"
 
 using namespace std;
 // For 'Jump line' if the distance is unavailable (*) the value will be set to 100. 
@@ -1371,7 +1372,7 @@ void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,in
         ofmfh<<"GFAv1"<<endl;
         ofmfh.close();
         //
-        ifstream in(gfaFile);
+        igzstream in(gfaFile);
         if(! in){
             cerr<<"Error: GFA file open failed"<<endl;
             exit(1);
