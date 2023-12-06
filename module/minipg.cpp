@@ -2806,6 +2806,9 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
             xfh.write((char *)&abRange,oneSize);
             rSite += esize * frEdgeNum[m];
         }
+        //
+        delete []frNrefNum;
+        delete []frEdgeNum;
     }
     //
     rxfh.close();
