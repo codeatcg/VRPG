@@ -271,7 +271,7 @@ def nodeCov(refAss,nodeFile,gafList,minMQ,covFile,assLFile,pathDir):
                         nodeArr = pattern.split(mapStr)
                         nodeCount = len(nodeArr)
                         if nodeCount < 3:
-                            covInfo[arr[0]][nodeArr[1]] = (int(mapArr[8]) - int(mapArr[7]) + 1) / nodeSize[nodeArr[1]]
+                            covInfo[arr[0]][nodeArr[1]] = (int(mapArr[8]) - int(mapArr[7])) / nodeSize[nodeArr[1]]
                         else:
                             for i in range(1,nodeCount):
                                 if i == 1:
@@ -281,9 +281,9 @@ def nodeCov(refAss,nodeFile,gafList,minMQ,covFile,assLFile,pathDir):
                                         covInfo[arr[0]][nodeArr[1]] = (nodeSize[nodeArr[1]] - int(mapArr[7])) / nodeSize[nodeArr[1]]
                                 elif i == nodeCount - 1:
                                     if nodeArr[i] in covInfo[arr[0]]:
-                                        covInfo[arr[0]][nodeArr[i]] += (nodeSize[nodeArr[i]] + int(mapArr[8]) + 1 - int(mapArr[6])) / nodeSize[nodeArr[i]]
+                                        covInfo[arr[0]][nodeArr[i]] += (nodeSize[nodeArr[i]] + int(mapArr[8]) - int(mapArr[6])) / nodeSize[nodeArr[i]]
                                     else:
-                                        covInfo[arr[0]][nodeArr[i]] = (nodeSize[nodeArr[i]] + int(mapArr[8]) + 1 - int(mapArr[6])) / nodeSize[nodeArr[i]]
+                                        covInfo[arr[0]][nodeArr[i]] = (nodeSize[nodeArr[i]] + int(mapArr[8]) - int(mapArr[6])) / nodeSize[nodeArr[i]]
 
                                 else:
                                     if nodeArr[i] in covInfo[arr[0]]:
