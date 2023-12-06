@@ -120,7 +120,7 @@ int readGFA(string &tmpFolder,ifstream &in,string &refStr,string &sep,unordered_
                     if(tStr == fixRef){
                         fullName = tStr + sep + fullName;
                     }
-                    rpfh<<"W\t"<<fullName<<"\t"<<numStart<<path<<endl;
+                    rpfh<<"W\t"<<fullName<<"\t"<<numStart<<"\t"<<path<<endl;
                 }
                 //
                 break;
