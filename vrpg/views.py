@@ -11,7 +11,7 @@ from module import minipg
 BinDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def index(request):
     allFiles = os.listdir(os.path.join(BinDir,"upload"))
-    allDir = [i  for i in allFiles if os.path.isdir(os.path.join(BinDir,"upload",i)) and i != "path"]
+    allDir = [i  for i in allFiles if os.path.isdir(os.path.join(BinDir,"upload",i)) and i != "path" and i != "anno"]
     return render(request,"vrpg/index.html",{"folder":allDir})
 
 def showInfo(request):
@@ -156,17 +156,19 @@ def showGraph(request):
     elif wsim == "mr":
         sim = True
     
-    queryDep = 10
-    depFile = os.path.join(upDir,"index.dep")
-    if os.path.exists(depFile):
-        with open(depFile) as dh:
-            queryDep = int(dh.read().strip())
+    queryDep = int(para.get("shdep"))
     
     mp = minipg.GraphRange(upDir,indexFlag)
     mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,sim,refSim)
     
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
+    
+    ndGenePos = mp.ndGenePos
+    geneVec = mp.geneVec
+    layerVec = mp.layerVec
+    strandVec = mp.strandVec
+    
     rNodeNum = len(draw_pos)
     
     layout = para.get("lay")
@@ -203,7 +205,9 @@ def showGraph(request):
                 mm.queryAssCov(nodeVec,ass)
                 hnCov = mm.ndCov
             
-    graphInfo = {'nodes':draw_node,'links':draw_edge, 'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList}
+    graphInfo = {'nodes':draw_node,'links':draw_edge, 'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList,
+        'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec
+    }
     
     return JsonResponse(graphInfo)
 
@@ -258,15 +262,17 @@ def initGraph(request):
     refSim = False
     
     queryDep = 10
-    depFile = os.path.join(upDir,"index.dep")
-    if os.path.exists(depFile):
-        with open(depFile) as dh:
-            queryDep = int(dh.read().strip())
     
     mp = minipg.GraphRange(upDir,indexFlag)
     mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,sim,refSim)
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
+    
+    ndGenePos = mp.ndGenePos
+    geneVec = mp.geneVec
+    layerVec = mp.layerVec
+    strandVec = mp.strandVec
+    
     rNodeNum = len(draw_pos)
     
     for i in range(rNodeNum ):
@@ -283,7 +289,9 @@ def initGraph(request):
     
     hnCov = []
     
-    graphInfo = {'nodes':draw_node,'links':draw_edge,'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList,'iniEnd':sEnd}
+    graphInfo = {'nodes':draw_node,'links':draw_edge,'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList,'iniEnd':sEnd,
+        'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec
+    }
     
     return JsonResponse(graphInfo)    
     
@@ -315,6 +323,7 @@ def searchNode(request):
         for line in af:
             header.append(line.strip())
     
+    geneList = [[]]
     if os.path.exists(dbNodeFile):
         mp = minipg.QueryNode(dbDir)
         mp.queryDbNode(int(node))
@@ -323,6 +332,9 @@ def searchNode(request):
         nodeChr = mp.nodeChr
         nodeStart = mp.nodeStart
         nodeEnd = mp.nodeEnd
+        
+        mp.queryGene(int(node),nodeAss)
+        geneList = mp.geneList
     else:
         nodeFile = os.path.join(dbDir,"node.info")
         with open(nodeFile) as nf:        
@@ -338,7 +350,11 @@ def searchNode(request):
                     nodeStart = arr[2]
                     nodeEnd = arr[3]
                     break
-                    
+        mp = minipg.QueryNode(dbDir)
+        mp.queryGene(int(node),nodeAss)
+        geneList = mp.geneList
+    
+    
     cov = []    
     if os.path.exists(dbCovFile):
         mp = minipg.QueryNode(dbDir)
@@ -369,6 +385,6 @@ def searchNode(request):
                     break
         
         
-    return JsonResponse({'ass':header,'cov':cov,'nodeAss':nodeAss,'nodeChr':nodeChr,'nodeStart':nodeStart,'nodeEnd':nodeEnd})   
+    return JsonResponse({'ass':header,'cov':cov,'nodeAss':nodeAss,'nodeChr':nodeChr,'nodeStart':nodeStart,'nodeEnd':nodeEnd,'geneList':geneList})   
 
 
