@@ -274,12 +274,10 @@ void GraphRange::eAssFind(vector<char> &orient,vector<NodeType> &nodes,map<NEdge
                     
                 }
             }
-        }else{
-            tIn = 0;
+            preOri = orient[j];
+            preIn = tIn;
+            preNode = nodes[j];
         }
-        preOri = orient[j];
-        preIn = tIn;
-        preNode = nodes[j];
     }
 }
 
