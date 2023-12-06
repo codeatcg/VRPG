@@ -55,7 +55,10 @@
                 <input id="startPos" value="1" type="number" min="1" class="form-control ml-2" style="width:200px">
                 <span class="mx-2">-</span>
                 <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:200px">
-
+                
+                <label for="shDep" class="ml-2">Search Depth</label>
+                <input id="shDep" value="10" type="number" min="1" class="form-control ml-1" style="width:150px">
+            
                 <button id="go" class="btn btn-primary  ml-2">Go</button>
                 <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.png' %}"></img></button>
                 <button id="mright" class="btn"><img src="{% static 'images/arrowRight3.png' %}"></img></button>
@@ -88,28 +91,40 @@
     
             <div id="Range"></div>
             <style>
-            .grid-container {
+            .grid-container{
                 display: grid;
-                grid-template-columns: 1000px 20px 300px;
-                
+                grid-template-columns: 1000px 300px;
+                grid-template-rows: 100px 500px;
+                grid-gap:5px;
+            }        
+            .item2{
+                grid-row-start: 1;
+                grid-row-end: 3;
+                grid-column-start: 2;
+                grid-column-end: 3;
+            }
+            .item3{
+                grid-row-start: 2;
+                grid-row-end: 3;
+                grid-column-start: 1;
             }
             </style>
             <div class="grid-container mt-2">
-                <div class="item1" style="border:1px solid lightgray; height:600px;">
+                <div class="item1" style="border:1px solid lightgray;">
                     <div>
-                        <svg width="1000" height="600">
+                        <svg id="ref"></svg>
                     </div>
                 </div>
                 
-                <div class="item2">
-                
+                <div class="item2" style="border:1px solid lightgray;">
+                    <div id='nodeInfo' style="width:300px; height:605px; overflow:auto">
+                        <p style="color:gray; margin-top:290px">Click on the graph node in the left box to find more about its corresponding genomic segment.<p>
+                    </div>
                 </div>
                 
-                <div class="item3" style="border:1px solid lightgray; height:600px">
+                <div class="item3" style="border:1px solid lightgray;">
                     <div>
-                        <div id='nodeInfo' style="height:600px; width:300px; overflow:auto">
-                            <p style="color:gray; margin-top:290px">Click on the graph node in the left box to find more about its corresponding genomic segment.<p>
-                        </div>
+                        <svg id="mgraph"></svg>
                     </div>
                 </div>
             </div>
@@ -122,7 +137,7 @@
             var d3cola;
             function graph(drawData){
                 var width = 1000;
-                var height = 600;
+                var height = 500;
                  $('#Range').html('');
                 if(drawData.nodes.length > 30000){
                     $('#Range').html('<p style="color:red">Warning: too many nodes, browser may fail to render the page!</p>');
@@ -147,7 +162,7 @@
                         .on('tick', ticked);
                 }else{
                     d3cola = cola.d3adaptor(d3)
-                        .size([1000, 600])
+                        .size([1000, 500])
                         .nodes(drawData.nodes)
                         .links(drawData.links)
                         .linkDistance(d=>{if(d.dis){if(d.dis<5){return 5}else{return d.dis}}else{return 50}})
@@ -273,7 +288,16 @@
                             nodeHtml += `<p>${seg}</p>`;
                             nodeHtml += "<h6>Segment Source:</h6>";
                             nodeHtml += `<p>Assembly: ${data.nodeAss}<br>Chr: ${data.nodeChr}<br>Start: ${data.nodeStart}<br>End: ${data.nodeEnd}<br></p>`;
-                            nodeHtml += "<h6>Segment presence/absence status:</h6>";
+                            
+                            nodeHtml += "<h6>GeneList:</h6>";
+                            nodeHtml += "<table class='table table-striped'>";
+                            nodeHtml += "<thead><tr><th>Chr</th><th>Start</th><th>End</th><th>ID</th><th>Name</th><th>Strand</th></tr></thead><tbody>"
+                            for (let m of data.geneList){
+                                nodeHtml += `<tr><td>${m[0]}</td><td>${m[1]}</td><td>${m[2]}</td><td>${m[3]}</td><td>${m[4]}</td><td>${m[5]}</td></tr>`
+                            }
+                            nodeHtml += "</tbody></table>";
+                            
+                            nodeHtml += "<h6>Segment mapping depth:</h6>";
                             nodeHtml += "<table class='table table-striped'>";
                             nodeHtml += "<thead><tr>";
                             nodeHtml += `<th>Assembly</th>`;
@@ -290,9 +314,130 @@
                         }
                     });
                 }
+                
+                var svg3 = d3.select('#ref').attr('viewBox',[0,0,1000,100]);
+                var svg4 = svg3.append('g');
 
+                var maxLayer = d3.max(drawData.layerVec);
+                var layerHeight = 60 / maxLayer;
+                var recHeight = layerHeight / 8;
+                var startY = recHeight * 5;
+                var layerY = [];
+                for(let a = 0; a < maxLayer; a++){
+                  layerY.push(startY + a * layerHeight);
+                }
+                
+                var preGene = "";
+                var geneRec = svg2.append('rect')
+                    .style('fill','gray')
+                    .style('stroke','none')
+                    .style('opacity',0.2)
+                    .style('visibility','hidden')
+                    .attr('y',0)
+                    .attr('height',500);
+                var visGene = svg4.append('g')
+                    .style('visibility','hidden')
+                    .append('text')
+                    .attr('fill','black');
+                svg4.append('g')
+                    .selectAll('path')
+                    .data(drawData.geneVec)
+                    .join('path')
+                    .style('fill',(d,i)=>{if(drawData.strand[i] == '+'){return '#FFAB91'}else{return '#9FA8DA'}})
+                    .style('stroke','none')
+                    .attr('d',(d,i)=>{
+                        var tStartX = drawData.genePos[i*2];
+                        var tEndX = drawData.genePos[i*2+1];
+                        var tStartY = layerY[drawData.layerVec[i]-1];
+                        var awLen = (tEndX - tStartX) / 5;
+                        if(drawData.strand[i] == '+'){
+                            return d3.line()(
+                              [
+                                [tStartX,tStartY],
+                                [tEndX-awLen,tStartY],
+                                [tEndX-awLen,tStartY-recHeight],
+                                [tEndX,tStartY+recHeight],
+                                [tEndX-awLen,tStartY+recHeight * 3],
+                                [tEndX-awLen,tStartY+recHeight * 2],
+                                [tStartX,tStartY+recHeight * 2],
+                                [tStartX,tStartY]
+                              ]
+                            )
+                          
+                        }else{
+                           return d3.line()(
+                              [
+                                [tEndX,tStartY],
+                                [tStartX+awLen,tStartY],
+                                [tStartX+awLen,tStartY-recHeight],
+                                [tStartX,tStartY+recHeight],
+                                [tStartX+awLen,tStartY+recHeight * 3],
+                                [tStartX+awLen,tStartY+recHeight * 2],
+                                [tEndX,tStartY+recHeight * 2],
+                                [tEndX,tStartY]
+                              ]
+                            )
+                        }
+                        
+                    })
+                    .on('click',(e,d)=>{
+                        var pt = d3.pointer(e);
+                        if(d != preGene){
+                            var i = drawData.geneVec.indexOf(d);
+                            var tStartX = drawData.genePos[i*2];
+                            var tEndX = drawData.genePos[i*2+1];
+                            var gLen = tEndX - tStartX;
+                            var tcolor = "";
+                            if(drawData.strand[i] == '+'){
+                                tcolor = "#FFAB91";
+                            }else{
+                                tcolor = "#9FA8DA";
+                            }
+                            geneRec.style('visibility','visible')
+                                .style('fill',tcolor)
+                                .attr('x',tStartX)
+                                .attr('width',gLen);
+                            visGene.style('visibility','visible')
+                                   .attr('x',pt[0])
+                                   .attr('y',pt[1]-recHeight*2)
+                                   .attr('text-anchor','start')
+                                   .text(d);
+                        }else{
+                            if($('rect').css('visibility') == 'visible'){
+                                geneRec.style('visibility','hidden');
+                                visGene.style('visibility','hidden');
+                            }else{
+                                geneRec.style('visibility','visible');
+                                visGene.style('visibility','visible')
+                                   .attr('x',pt[0])
+                                   .attr('y',pt[1]-recHeight*2)
+                                   .attr('text-anchor','start')
+                                   .text(d);
+                            }
+                        }
+                        
+                        preGene = d;
+                    });
+                
+                svg4.append('g')
+                    .append('text')
+                    .attr('text-anchor','middle')
+                    .attr('transform','translate(15,50) rotate(-90)')
+                    .style('font-size',15)
+                    .style('fill','#3F51B5')
+                    .text('Ref Gene');
+                    
+                svg2.append('g')
+                    .append('text')
+                    .attr('text-anchor','middle')
+                    .attr('transform','translate(15,250) rotate(-90)')
+                    .style('font-size',15)
+                    .style('fill','#3F51B5')
+                    .text('Pangenome Graph');
+                
                 function zoomed(e){
                         svg2.attr("transform",e.transform);
+                        svg4.attr("transform",e.transform);
                 };
                 
                 zoomFun = d3.zoom()
@@ -301,6 +446,7 @@
                            .on("zoom",zoomed);
                            
                 svg.call(zoomFun);
+                svg3.call(zoomFun);
                            
                 $('#zoomIn').on("click",function(){
                     svg.transition().call(zoomFun.scaleBy,1.25);
@@ -374,6 +520,7 @@
                 fData.append('ass',$('#ass').val());
                 fData.append('lay',$('#centg').val());
                 fData.append('sim',$('#sim').val());
+                fData.append('shdep',$('#shDep').val());
                 
                 var csrfToken = $("[name='csrfmiddlewaretoken']").val();
                 fData.append('csrfmiddlewaretoken',csrfToken);
@@ -589,10 +736,13 @@
             });
             
             function saveIm(){
-                var html = d3.select("svg")
-                             .attr("version","1.1")
-                             .attr("xmlns","http://www.w3.org/2000/svg")
-                             .node().parentNode.innerHTML;
+                var html1 = d3.select("#ref")
+                         .node().innerHTML;
+                         
+                var html2 = d3.select("#mgraph")
+                         .node().innerHTML;
+                         
+                var html = `<svg version="1.1" xmlns="http://www.w3.org/2000/svg">` + html1 + html2 + "</svg>";
                 var blob = new Blob([html],{type:"image/svg+xml"});
                 saveAs(blob,"panGraph.svg");
             }
