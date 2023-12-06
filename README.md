@@ -9,9 +9,12 @@ an interactive web viewer for reference-projected pangenome graph
 
 VRPG is an interactive web viewer for reference-projected pangenome graph. It naturally supports graphs in reference Graph Fragment Assembly (<a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a>) format and for graphs in Graph Fragment Assembly (<a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a>) format VRPG provides a command-line tool named gfa2view to transform the GFA files to a rGFA-like format. VRPG implements a block index system to support navigating the large and complex pangenome upon hundreds of whole genome assemblies in real time. The information about coordinate and copy number of each segment among the graph was stored in an efficient way and can be queried with almost no delay. VRPG aligns the reference nodes along the center line of the viewport, which make the reference genome easy to be recognized. VRPG also provides an intuitive way for genome comparison by highlighting the path of a particular assembly and its orientation on the rendered graph. A website shipping four pangenome graphs (one for yeast and three for human) is available at https://www.evomicslab.org/app/vrpg/. The Saccharomyces cerevisiae pangenome graph was generated using 163 assemblies and The three Homo sapiens pangenome graphs were constructed by <a href="https://humanpangenome.org/">HPRC</a>  by three different pipelines (Minigraph, Minigraph-CACTUS and PGGB) upon the same dataset with 90 whole genome assemblies. Users can also deploy the web application and view their own data.  
 
-**Note:** the released version 0.1.2 is not the latest. For graph in GFA format the overlap field in link line (overlap between segments)  should be specified (in graphs created by Minigraph-CACTUS and PGGB the overlap is generally specified as 0M), or the value will be set to 0 by VRPG-gfa2view. Although whether the overlap is specified doesn't affect the visualization of the graph it may affect the determination of the coordinate of the segment. 
+**Note:** 
+The released version 0.1.3 is not the latest. The latest version of VRPG added a new tool named 'GraphAnno', which can be used to create indexed annotation files for reference gene track plot and interactive view of genes which a node overlaps with.
 
-The graphs created by Minigraph-CACTUS and PGGB include large amounts of SNPs and INDELs. The structure variations may be covered up by these small variants. The latest version of VRPG supplied functions to simplify the graph, i.e. remove nodes related to the small variants (with size < 50 bp). The simplification related option 'non-ref' in combobox means simplifying non-reference nodes. 'all node' means simplifying all nodes including reference and non-reference. 'none' means not simplifying the graph. Now VRPG can be used to visualize variants at different scales and find their coordinates relative to the reference  conveniently. Furthermore, the function that serves several pangenomes were added back in the latest version of VRPG.
+For graph in GFA format the overlap field in link line (overlap between segments)  should be specified (in graphs created by Minigraph-CACTUS and PGGB the overlap is generally specified as 0M), or the value will be set to 0 by VRPG-gfa2view. Although whether the overlap is specified doesn't affect the visualization of the graph it may affect the determination of the coordinate of the segment. 
+
+The graphs created by Minigraph-CACTUS and PGGB include large amounts of SNPs and INDELs. The structure variations may be covered up by these small variants. VRPG (version >=0.1.3)  supplied functions to simplify the graph, i.e. remove nodes related to the small variants (with size < 50 bp). The simplification related option 'non-ref' in combobox means simplifying non-reference nodes. 'all node' means simplifying all nodes including reference and non-reference. 'none' means not simplifying the graph. Now VRPG can be used to visualize variants at different scales and find their coordinates relative to the reference  conveniently. Furthermore, the function that serves several pangenomes were added back in the latest version of VRPG.
 
 For cola layout the node size is more proportional to the segment sequence size. But it may take a little longer time to stabilize. When the number of nodes in a window is small cola layout can be tested.  
 
@@ -22,6 +25,7 @@ Python3 (>=3.6) and pip environment are required.
 # For installing a historical version please access https://github.com/codeatcg/VRPG/releases and download the source code.
 
 # install the latest version
+# zlib
 # gcc >= 4.9
 pip install Django==3.2.4  pybind11
 git clone https://github.com/codeatcg/VRPG --recursive  
@@ -96,6 +100,19 @@ By two steps users can test different options and parameters to index the graph,
 **Note**, For the current version of 'gfa2view' memory consumption is proportional to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
 
 If only a particular set of reference chromosomes or contigs are considered for view the option ‘--refChr’ can be used to save running time. The option only affects the process of indexing. If this option is specified, a file containing the expected chromosomes/contigs with one chromosome/contig per line is required.   
+
+## Annotation
+
+```
+# Create files for reference gene track plot
+# run 'GraphAnno addRef --help' for help 
+GraphAnno addRef --inGFF gffFile --chrTrans chrTransFile --upDir upload
+
+# Create files for interactive view of genes with which a node overlaps
+# run 'GraphAnno nodeGene --help' for help
+GraphAnno nodeGene --gffList gffListFile --upDir upload
+
+```
 
 # Execution  
 ## Local server or personal computer with Linux/Ubuntu operating system  
