@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
+#include <algorithm>
 
 #ifdef PYMODULE
 #include <pybind11/pybind11.h>
@@ -746,7 +747,132 @@ void GraphRange::dxAssNode(int assNum,int chrNum,int sStart,int sEnd,map<NEdge,i
         eAssFind(oriMulti[i],nodeMulti[i],r_edge_dict,nid_dict,ndGroup);
     }
 }
+//
+void GraphRange::readRefGene(string &ovFile,string &gDxFile,int chrNum,int sStart,int sEnd,unordered_set<NodeType> &retainID,vector<NodeGene> &refNodeGene){
+    ifstream gf(ovFile.c_str());
+    if(! gf){
+        cerr<<"Error: file open failed. "<<ovFile<<endl;
+        return;
+        //exit(1);
+    }
+    ifstream gdx(gDxFile.c_str());
+    if(! gdx){
+        cerr<<"Error: file open failed. "<<gDxFile<<endl;
+        return;
+        //exit(1);
+    }
+    //
+    int nchr = 0;
+    int intSize = sizeof(int);
+    gdx.read((char *)&nchr,intSize);
+    int refChr = -1;
+    bool findChr = false;
+    //int total = 0;
+    ChrRange crRange;
+    int crSize = sizeof(ChrRange);
+    for(int x = 0; x < nchr; ++x){
+        gdx.read((char *)&refChr,intSize);
+        gdx.read((char *)&crRange,crSize);
+        if(refChr == chrNum){
+            findChr = true;
+            break;
+        }
+    }
+    
+    long long refOff = 0LL;
+    int rt = 0;
+    bool flag = true;
+    int oneSize = sizeof(OneRange);
 
+    if(findChr){
+        gdx.clear();
+        gdx.seekg(crRange.rByte,ios::beg);
+        for(int k = 0; k < crRange.ranNum; ++k){
+            OneRange tRange;
+            gdx.read((char *)&tRange,oneSize);
+            if(tRange.ranStart <= sStart){
+                if(tRange.ranEnd >= sStart){
+                    if(flag){
+                        refOff = tRange.offByte;
+                        flag = false;
+                    }
+                    rt += tRange.ranNum;
+                }
+                
+            }else{
+                if(tRange.ranStart <= sEnd){
+                    if(flag){
+                        refOff = tRange.offByte;
+                        flag = false;
+                    }
+                    rt += tRange.ranNum;
+                }else{
+                    break;
+                }
+                
+            }
+        }
+    }
+    gdx.close();
+    if(flag){
+        cerr<<"Error: nodes can't be found in the interval. "<<chrNum<<" : "<<sStart<<" - "<<sEnd<<endl;
+        return;
+        //exit(1);
+    }
+    //
+    gf.seekg(refOff,ios::beg);
+    int unitSize = sizeof(NodeGene);
+    for(int m = 0; m < rt; ++m){
+        NodeGene ndg;
+        gf.read((char *)&ndg,unitSize);
+        if(retainID.find(ndg.node) != retainID.end()){
+            refNodeGene.push_back(ndg);
+        }
+    }
+    gf.close();
+}
+
+void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK){
+    unordered_set<NodeType> retainID;
+    map<NodeType,float> rNodeStart;
+    for(size_t i = 0; i < draw_pos.size(); i+=2){
+        NodeType id = nnames[draw_node[i]["group"]];
+        retainID.insert(id);
+        rNodeStart.emplace(id,draw_pos[i]);
+    }
+    vector<NodeGene> refNodeGene;
+    readRefGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,retainID,refNodeGene);
+    if(refNodeGene.empty()){
+        return;
+    }
+    map<string,FigGene> geneMap;
+    map<string,FigGene>::iterator it;
+    for(size_t i = 0; i < refNodeGene.size(); ++i){
+        string geneName = refNodeGene[i].name;
+        float ndFigStart = rNodeStart[refNodeGene[i].node];
+
+        it = geneMap.find(geneName);
+        if(it != geneMap.end()){
+            (it->second).end = ndFigStart + (refNodeGene[i].len - 1) * wPerK;
+        }else{
+            float geneStart = ndFigStart + refNodeGene[i].reStart * wPerK;
+            float geneEnd = geneStart + (refNodeGene[i].len - 1) * wPerK;
+            int layer = refNodeGene[i].layer;
+            char tstrand = refNodeGene[i].strand;
+            FigGene tf = {geneStart,geneEnd,layer,tstrand};
+            geneMap.emplace(geneName,tf);
+        }
+    }
+    for(auto &tg : geneMap){
+        geneVec.push_back(tg.first);
+        
+        ndGenePos.push_back(tg.second.start);
+        ndGenePos.push_back(tg.second.end);
+        layerVec.push_back(tg.second.layer);
+        strandVec.push_back(tg.second.strand);
+    }
+}
+//
 void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,bool sim,bool refSim){
     unordered_map<NodeType,vector<ENode> > iedge;
     unordered_map<NodeType,vector<ENode> > oedge;
@@ -2911,6 +3037,67 @@ void QueryNode::queryDbNode(int node){
     nodeChr = tchr;
     in.close();
 }
+//
+void QueryNode::queryGene(int node,string &nodeAss){
+    string annoDxFile = dbDir + "/anno.bdx";
+    string annoNumFile = dbDir + "/anno.num";
+    
+    string assFile = dbDir + "/ass.list";
+    string assFile2 = dbDir + "/node.ass.list";
+    if(access(assFile2.c_str(),F_OK) == 0){
+        assFile = assFile2;
+    }
+    int pos = 0;
+    ifstream afh(assFile.c_str());
+    string line;
+    while(getline(afh,line)){
+        if(line == nodeAss){
+            break;
+        }
+        ++pos;
+    }
+    afh.close();
+    
+    string annoFile = dbDir + "/anno/" + to_string(pos) + ".anno.bw";     
+    ifstream in(annoDxFile.c_str()); 
+    if(! in){
+        cerr<<"Warning: file open failed. "<<annoDxFile<<endl;
+        return;
+    }
+    in.seekg(sizeof(AnnoDx) * (node - 1),ios::beg);
+    AnnoDx adx;
+    in.read((char *)&adx,sizeof(AnnoDx));   
+    ifstream mfh(annoNumFile.c_str());
+    ifstream nfh(annoFile.c_str());
+    if(! nfh){
+        cerr<<"Warning: file open failed. "<<annoFile<<endl;
+        return;
+    }
+    long long offset = adx.offset;
+    mfh.seekg(offset,ios::beg);
+    vector<int> gPos;
+    int intSize = sizeof(int);
+    int uSize = sizeof(AnnoLine);   
+    for(int i = 0; i < adx.num; ++i){       
+        int tnum;
+        mfh.read((char *)&tnum,intSize);       
+        long long toffset = uSize * tnum + intSize;
+        nfh.seekg(toffset,ios::beg);
+        AnnoLine annoInfo;
+        nfh.read((char *)&annoInfo,uSize);
+        vector<string> geneStr;
+        geneStr.push_back(annoInfo.seqid);
+        geneStr.push_back(to_string(annoInfo.start));
+        geneStr.push_back(to_string(annoInfo.end));
+        geneStr.push_back(annoInfo.geneID);
+        geneStr.push_back(annoInfo.geneName);
+        geneStr.push_back(string(1,annoInfo.strand));
+        geneList.push_back(geneStr);
+    }
+    in.close();
+    mfh.close();
+    nfh.close();
+}
 
 //
 void QueryNode::queryDbCov(int node){
@@ -3092,14 +3279,20 @@ PYBIND11_MODULE(minipg,m){
         .def_readwrite("nnames",&GraphRange::nnames)
         .def_readwrite("hnGroup",&GraphRange::hnGroup)
         .def_readwrite("hLinks",&GraphRange::hLinks)
-        .def_readwrite("hDir",&GraphRange::hDir);
+        .def_readwrite("hDir",&GraphRange::hDir)
+        .def_readwrite("ndGenePos",&GraphRange::ndGenePos)
+        .def_readwrite("geneVec",&GraphRange::geneVec)
+        .def_readwrite("layerVec",&GraphRange::layerVec)
+        .def_readwrite("strandVec",&GraphRange::strandVec);
         
     py::class_<QueryNode>(m,"QueryNode")
         .def(py::init<string &>())
         .def("queryDbNode",&QueryNode::queryDbNode)
+        .def("queryGene",&QueryNode::queryGene)
         .def("queryDbCov",&QueryNode::queryDbCov)
         .def("queryAssCov",&QueryNode::queryAssCov)
         //.def_readwrite("header",&QueryNode::header)
+        .def_readwrite("geneList",&QueryNode::geneList)
         .def_readwrite("ndCov",&QueryNode::ndCov)
         .def_readwrite("nodeAss",&QueryNode::nodeAss)
         .def_readwrite("nodeChr",&QueryNode::nodeChr)

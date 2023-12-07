@@ -7,6 +7,37 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#define FIELDSIZE 64
+
+typedef struct{
+    char seqid[FIELDSIZE];
+    int start;
+    int end;
+    char geneID[FIELDSIZE];
+    char geneName[FIELDSIZE];
+    char strand;
+} AnnoLine;
+
+typedef struct{
+    long long offset;
+    int num;
+} AnnoDx;
+
+typedef struct{
+    int node;
+    int reStart;
+    int len;
+    char name[FIELDSIZE];
+    uint8_t layer;
+    char strand;
+} NodeGene;
+
+typedef struct{
+    float start;
+    float end;
+    int layer;
+    int strand;    
+} FigGene;
 
 inline void assSplit(const std::string &r_chr, const std::string &sep,std::string &tName,std::string &t_hap,std::string &tchr){
     auto t_pos = r_chr.find(sep);
@@ -196,6 +227,11 @@ public:
     std::vector<std::string> hLinks;
     std::vector<char> hDir;
     
+    std::vector<float> ndGenePos;
+    std::vector<std::string> geneVec;
+    std::vector<int> layerVec;
+    std::vector<char> strandVec;
+    
     void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,bool sim,bool refSim);
     void edgeWrite(std::string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep);
     
@@ -238,7 +274,9 @@ private:
     void rangePath(std::vector<char> &orient,std::vector<NodeType> &nodes,std::unordered_map<NodeType,std::vector<int> > &ndCutMap,std::list<PathRang> &allPaRa);
     
     void indexPath(std::string &assFile,std::string &eIndexFile,std::string &bEdgeFile,int nthread);
-
+    //
+    void readRefGene(std::string &ovFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,std::unordered_set<NodeType> &retainID,std::vector<NodeGene> &refNodeGene);
+    void getFigGene(std::string &bwGeneFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK);
 };
 
 
@@ -249,9 +287,11 @@ public:
     std::vector<int> ndCov;
     std::string nodeAss,nodeChr;
     int nodeStart,nodeEnd;
+    std::vector<std::vector<std::string> > geneList;
     
     void queryDbNode(int node);
     void queryDbCov(int node);
+    void queryGene(int node,std::string &nodeAss);
     void queryAssCov(std::vector<int> &nodeVec,std::string &ass);
 private:
     int node;
