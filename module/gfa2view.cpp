@@ -7,11 +7,10 @@
 #include <unistd.h>
 
 #include "gfa2v.h"
-#include "gz.h"
 
 using namespace std;
 // For 'Jump line' if the distance is unavailable (*) the value will be set to 100. 
-int readGFA(string &tmpFolder,ifstream &in,string &refStr,string &sep,unordered_map<int,int> &mNodeLen,map<NEdge,int> &edgeMap,map<NEdge,int> &jumpMap,ofstream &afh,ofstream &acfh){
+int readGFA(string &tmpFolder,igzstream &in,string &refStr,string &sep,unordered_map<int,int> &mNodeLen,map<NEdge,int> &edgeMap,map<NEdge,int> &jumpMap,ofstream &afh,ofstream &acfh){
     string gfaLine;
     stringstream strStream;
     //int nodeCount = 0;

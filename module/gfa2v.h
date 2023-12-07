@@ -1,6 +1,7 @@
 
 #include <fstream>
 #include "vgraph.h"
+#include "gz.h"
 
 using namespace std;
 
@@ -64,7 +65,7 @@ inline void markSign(char mark,bool flip1,bool flip2,char &sign1,char &sign2){
     
 }
 
-int readGFA(std::string &tmpFolder,std::ifstream &in,std::string &refStr,std::string &sep,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,std::ofstream &afh,std::ofstream &acfh);
+int readGFA(std::string &tmpFolder,igzstream &in,std::string &refStr,std::string &sep,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,std::ofstream &afh,std::ofstream &acfh);
 
 int psRchrWalk(std::string &refPath,std::string &fullName,int refStart,std::unordered_map<int,int> &mNodeLen,int &neoID,std::unordered_set<int> &refNodeSet,
                std::unordered_set<int> &flipSet,std::unordered_map<int,int> &rCovMap,std::ofstream &nfh,std::ofstream &efh,std::ofstream &pfh);
