@@ -3342,7 +3342,8 @@ PYBIND11_MODULE(minipg,m){
         .def_readwrite("ndGenePos",&GraphRange::ndGenePos)
         .def_readwrite("geneVec",&GraphRange::geneVec)
         .def_readwrite("layerVec",&GraphRange::layerVec)
-        .def_readwrite("strandVec",&GraphRange::strandVec);
+        .def_readwrite("strandVec",&GraphRange::strandVec)
+        .def_readwrite("mgFlagVec",&GraphRange::mgFlagVec);
         
     py::class_<QueryNode>(m,"QueryNode")
         .def(py::init<string &>())
