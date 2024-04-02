@@ -188,7 +188,7 @@
                 var colors = d3.scaleOrdinal()
                     .domain(genome)
                     .range(d3.quantize(d3.interpolateRainbow,genome.length));          
-                var svg = d3.select("svg").attr("viewBox",[0,0,width,height]);
+                var svg = d3.select("#mgraph").attr("viewBox",[0,0,width,height]);
                 svg.append("defs")
                     .append("marker")
                     .attr("id","arrEnd")
