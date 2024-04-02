@@ -1189,7 +1189,8 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
         }
     }
     
-    NodeType simNode = 0;
+    NodeType simNode = rangeNode.front();
+    bool preOte = false;
     for(NodeType &tnode: rangeNode){
         nnames.push_back(tnode);
         int node_len = info[tnode].len;
