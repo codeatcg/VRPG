@@ -232,6 +232,7 @@ public:
     std::vector<std::string> geneVec;
     std::vector<int> layerVec;
     std::vector<char> strandVec;
+    std::vector<char> mgFlagVec;
     
     void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim);
     void edgeWrite(std::string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep);
