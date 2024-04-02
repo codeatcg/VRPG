@@ -133,7 +133,7 @@ def showGraph(request):
     wStart = 50
     wWidth = 800
     wCut = 2000
-    y = 300
+    y = 250
     
     ass = para.get("ass")
     chrList = {}
@@ -252,7 +252,7 @@ def initGraph(request):
     wStart = 50
     wWidth = 800
     wCut = 2000
-    y = 300
+    y = 250
     buFilt = 50
     
     ass = "0"
