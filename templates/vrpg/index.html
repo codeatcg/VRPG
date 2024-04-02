@@ -288,12 +288,12 @@
                         },
                         
                         success: function(data){
-                            var nodeHtml = "<h6>Segment Name:</h6>"; 
+                            var nodeHtml = "<h5>Segment information \></h5><br><h6>Segment name:</h6>"; 
                             nodeHtml += `<p>${seg}</p>`;
-                            nodeHtml += "<h5>Segment information \></h5><br><h6>Segment Source:</h6>";
+                            nodeHtml += "<h6>Segment source:</h6>";
                             nodeHtml += `<p>Assembly: ${data.nodeAss}<br>Chr: ${data.nodeChr}<br>Start: ${data.nodeStart}<br>End: ${data.nodeEnd}<br></p>`;
                             
-                            nodeHtml += "<h6>GeneList:</h6>";
+                            nodeHtml += "<h6>Gene list:</h6>";
                             nodeHtml += "<table class='table table-striped'>";
                             nodeHtml += "<thead><tr><th>ID</th><th>Name</th><th>Assembly</th><th>Chr</th><th>Start</th><th>End</th><th>Strand</th></tr></thead><tbody>"
                             for (let m of data.geneList){
@@ -301,7 +301,7 @@
                             }
                             nodeHtml += "</tbody></table>";
                             
-                            nodeHtml += "<h6>Segment mapping depth:</h6>";
+                            nodeHtml += "<h6>Segment depth:</h6>";
                             nodeHtml += "<table class='table table-striped'>";
                             nodeHtml += "<thead><tr>";
                             nodeHtml += `<th>Assembly</th>`;
