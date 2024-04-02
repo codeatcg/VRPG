@@ -128,6 +128,7 @@ def showGraph(request):
     sChr = para.get("tchr")
     sStart = int(para.get("start"))
     sEnd = int(para.get("end"))
+    buFilt = int(para.get("buFilt"))
     ex = 1000000
     wStart = 50
     wWidth = 800
@@ -159,15 +160,15 @@ def showGraph(request):
     queryDep = int(para.get("shdep"))
     
     mp = minipg.GraphRange(upDir,indexFlag)
-    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,sim,refSim)
+    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,buFilt,sim,refSim)
     
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     
-    ndGenePos = mp.ndGenePos
-    geneVec = mp.geneVec
-    layerVec = mp.layerVec
-    strandVec = mp.strandVec
+    #ndGenePos = mp.ndGenePos
+    #geneVec = mp.geneVec
+    #layerVec = mp.layerVec
+    #strandVec = mp.strandVec
     
     rNodeNum = len(draw_pos)
     
@@ -206,7 +207,7 @@ def showGraph(request):
                 hnCov = mm.ndCov
             
     graphInfo = {'nodes':draw_node,'links':draw_edge, 'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList,
-        'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec
+        'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec,'mgFlagVec':mp.mgFlagVec
     }
     
     return JsonResponse(graphInfo)
@@ -252,6 +253,7 @@ def initGraph(request):
     wWidth = 800
     wCut = 2000
     y = 300
+    buFilt = 50
     
     ass = "0"
     indexFlag = 0
@@ -264,14 +266,14 @@ def initGraph(request):
     queryDep = 10
     
     mp = minipg.GraphRange(upDir,indexFlag)
-    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,sim,refSim)
+    mp.formatGraph(ass,sChr,sStart,sEnd,ex,wStart,wWidth,wCut,y,queryDep,buFilt,sim,refSim)
     draw_node = mp.draw_node
     draw_pos = mp.draw_pos
     
-    ndGenePos = mp.ndGenePos
-    geneVec = mp.geneVec
-    layerVec = mp.layerVec
-    strandVec = mp.strandVec
+    #ndGenePos = mp.ndGenePos
+    #geneVec = mp.geneVec
+    #layerVec = mp.layerVec
+    #strandVec = mp.strandVec
     
     rNodeNum = len(draw_pos)
     
@@ -290,7 +292,7 @@ def initGraph(request):
     hnCov = []
     
     graphInfo = {'nodes':draw_node,'links':draw_edge,'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'ass':assList,'iniEnd':sEnd,
-        'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec
+        'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec,'mgFlagVec':mp.mgFlagVec
     }
     
     return JsonResponse(graphInfo)    
