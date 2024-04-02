@@ -907,7 +907,7 @@ void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sS
     }
 }
 //
-void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,bool sim,bool refSim){
+void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim){
     unordered_map<NodeType,vector<ENode> > iedge;
     unordered_map<NodeType,vector<ENode> > oedge;
     
@@ -994,7 +994,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                         }
                     }
                 }
-                if(maxLen < 50){
+                if(maxLen < varLen){
                     if(! tNref.empty()){
                         size_t i = 0;
                         int aMaxLen = 0;
@@ -1004,7 +1004,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                         while(i < tNref.size()){
                             if(deep[i] != preDeep){
                                 maxLen += aMaxLen;
-                                if(maxLen >= 50){
+                                if(maxLen >= varLen){
                                     break;
                                 }
                                 //
@@ -1097,7 +1097,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                     }
                 }
                 
-                if(maxLen < 50){
+                if(maxLen < varLen){
                     int rlen = 0,llen = 0;
                     bool inv = false;
                     int lStart = lpoint + 1,rEnd = rpoint;
@@ -1121,7 +1121,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                             for(int j = lStart; j < point; ++j){
                                 llen += info[rangeNode[j]].len;
                             }
-                            if(llen < 50){
+                            if(llen < varLen){
                                 if(rpoint > point){
                                     if(rstMark < '4'){
                                         if(rOri == 'o'){
@@ -1141,7 +1141,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                         for(int j = point + 1; j < rEnd; ++j){
                                             rlen += info[rangeNode[j]].len;
                                         }
-                                        if(rlen < 50){
+                                        if(rlen < varLen){
                                             for(auto &xnode : tNref){
                                                 subMap.insert(xnode);
                                             }
@@ -1174,7 +1174,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                 for(int j = point + 1; j < rEnd; ++j){
                                     rlen += info[rangeNode[j]].len;
                                 }
-                                if(rlen < 50){
+                                if(rlen < varLen){
                                     for(auto &xnode : tNref){
                                         subMap.insert(xnode);
                                     }
@@ -1210,7 +1210,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                 for(int k = range_set[tnode] + 1; k < range_set[o_node.node]; ++k){
                                     vlen += info[rangeNode[k]].len;
                                 }
-                                if(vlen < 50){
+                                if(vlen < varLen){
                                     if(o_node.mark == '2'){
                                         flag = false;
                                     }
@@ -1220,7 +1220,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                 for(int k = range_set[o_node.node] + 1; k < range_set[tnode]; ++k){
                                     vlen += info[rangeNode[k]].len;
                                 }
-                                if(vlen < 50){
+                                if(vlen < varLen){
                                     if(o_node.mark == '5'){
                                         flag = false;
                                     }
@@ -1323,7 +1323,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                     for(int k = range_set[tnode] + 1; k < range_set[o_node.node]; ++k){
                                         vlen += info[rangeNode[k]].len;
                                     }
-                                    if(vlen < 50){
+                                    if(vlen < varLen){
                                         if(o_node.mark == '5'){
                                             flag = false;
                                         }
@@ -1333,7 +1333,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                     for(int k = range_set[o_node.node] + 1; k < range_set[tnode]; ++k){
                                         vlen += info[rangeNode[k]].len;
                                     }
-                                    if(vlen < 50){
+                                    if(vlen < varLen){
                                         if(o_node.mark == '2'){
                                             flag = false;
                                         }
