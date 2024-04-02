@@ -36,7 +36,7 @@ typedef struct{
     float start;
     float end;
     int layer;
-    int strand;
+    char strand;
     char margin;
 } FigGene;
 
