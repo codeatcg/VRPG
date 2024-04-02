@@ -82,6 +82,10 @@
                     <option value="off">none</option>
                 </select>
 
+                <label for="buFilt" class="ml-3">Bubble Filter</label>
+                <input id="buFilt" value="50" type="number" min="0" class="form-control ml-1 mr-1" style="width:100px">
+                <image id="bubt" src="{% static 'images/question.svg' %}" data-toggle="tooltip" title="Filter top-level bubbles with the longest path < 'Bubble Filter' bp (accompanied with the option 'Simplify')"></image>
+            
                 <label class="ml-3" for="ass">Highlight</label>
                 <select id="ass" class="form-control ml-1"></select>
 
@@ -351,32 +355,56 @@
                         var tStartY = layerY[drawData.layerVec[i]-1];
                         var awLen = (tEndX - tStartX) / 5;
                         if(drawData.strand[i] == '+'){
-                            return d3.line()(
-                              [
-                                [tStartX,tStartY],
-                                [tEndX-awLen,tStartY],
-                                [tEndX-awLen,tStartY-recHeight],
-                                [tEndX,tStartY+recHeight],
-                                [tEndX-awLen,tStartY+recHeight * 3],
-                                [tEndX-awLen,tStartY+recHeight * 2],
-                                [tStartX,tStartY+recHeight * 2],
-                                [tStartX,tStartY]
-                              ]
-                            )
+                            if(drawData.mgFlagVec[i] == '1'){
+                                return d3.line()(
+                                  [
+                                    [tStartX,tStartY],
+                                    [tEndX,tStartY],
+                                    [tEndX,tStartY+recHeight * 2],
+                                    [tStartX,tStartY+recHeight * 2],
+                                    [tStartX,tStartY]
+                                  ]
+                                );
+                            }else{
+                                return d3.line()(
+                                  [
+                                    [tStartX,tStartY],
+                                    [tEndX-awLen,tStartY],
+                                    [tEndX-awLen,tStartY-recHeight],
+                                    [tEndX,tStartY+recHeight],
+                                    [tEndX-awLen,tStartY+recHeight * 3],
+                                    [tEndX-awLen,tStartY+recHeight * 2],
+                                    [tStartX,tStartY+recHeight * 2],
+                                    [tStartX,tStartY]
+                                  ]
+                                );
+                            }
                           
                         }else{
-                           return d3.line()(
-                              [
-                                [tEndX,tStartY],
-                                [tStartX+awLen,tStartY],
-                                [tStartX+awLen,tStartY-recHeight],
-                                [tStartX,tStartY+recHeight],
-                                [tStartX+awLen,tStartY+recHeight * 3],
-                                [tStartX+awLen,tStartY+recHeight * 2],
-                                [tEndX,tStartY+recHeight * 2],
-                                [tEndX,tStartY]
-                              ]
-                            )
+                            if(drawData.mgFlagVec[i] == '2'){
+                                return d3.line()(
+                                  [
+                                    [tEndX,tStartY],
+                                    [tStartX,tStartY],
+                                    [tStartX,tStartY+recHeight * 2],
+                                    [tEndX,tStartY+recHeight * 2],
+                                    [tEndX,tStartY]
+                                  ]
+                                );
+                            }else{
+                               return d3.line()(
+                                  [
+                                    [tEndX,tStartY],
+                                    [tStartX+awLen,tStartY],
+                                    [tStartX+awLen,tStartY-recHeight],
+                                    [tStartX,tStartY+recHeight],
+                                    [tStartX+awLen,tStartY+recHeight * 3],
+                                    [tStartX+awLen,tStartY+recHeight * 2],
+                                    [tEndX,tStartY+recHeight * 2],
+                                    [tEndX,tStartY]
+                                  ]
+                                );
+                            }
                         }
                         
                     })
@@ -437,7 +465,7 @@
                 
                 function zoomed(e){
                         svg2.attr("transform",e.transform);
-                        svg4.attr("transform",e.transform);
+                        svg4.attr("transform",`translate(${e.transform.x},0) scale(${e.transform.k})`);
                 };
                 
                 zoomFun = d3.zoom()
@@ -521,6 +549,7 @@
                 fData.append('lay',$('#centg').val());
                 fData.append('sim',$('#sim').val());
                 fData.append('shdep',$('#shDep').val());
+                fData.append('buFilt',$('#buFilt').val());
                 
                 var csrfToken = $("[name='csrfmiddlewaretoken']").val();
                 fData.append('csrfmiddlewaretoken',csrfToken);
@@ -561,6 +590,7 @@
             function initGraph(){
                 $('#sim').val("mr");
                 $('#centg').val("sq");
+                $('#buFilt').val(50);
                 var fData = new FormData();
                 fData.append('species',$('#species').val());
                 var csrfToken = $("[name='csrfmiddlewaretoken']").val();
@@ -604,6 +634,7 @@
             
             $(function(){
                 initGraph();
+                $('[data-toggle="tooltip"]').tooltip();
             });
             
             $('#stopAni').on("click",function(){
@@ -631,6 +662,11 @@
             });
             
             $('#go').on("click",function(){
+                if($('#startPos').val() == "" || $('#endPos').val() == "" || $('#shDep').val() == "" || $('#buFilt').val() == ""){
+                    $('#Range').html('<p style="color:red">Warning: Incorrect input value! This needs to be INTEGER only (without any flanking space).</p>');
+                }else{
+                    $('#Range').html('')
+                }
                 var pstart = parseInt($('#startPos').val());
                 var pend = parseInt($('#endPos').val());
                 var dis = pend - pstart;
@@ -738,9 +774,11 @@
             function saveIm(){
                 var html1 = d3.select("#ref")
                          .node().innerHTML;
+                    html1 = html1.replace(/<g transform=\"translate\(.+?\)/,'<g transform="');
                          
                 var html2 = d3.select("#mgraph")
                          .node().innerHTML;
+                    html2 = html2.replace(/<g transform=\"translate\(.+?\)/,'<g transform="');
                          
                 var html = `<svg version="1.1" xmlns="http://www.w3.org/2000/svg">` + html1 + html2 + "</svg>";
                 var blob = new Blob([html],{type:"image/svg+xml"});
