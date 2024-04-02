@@ -141,10 +141,10 @@ void getAssNode(string &nodeFile,string &sep,map<string,map<string,vector<NdPos>
     in.close();
 }
 
-void rgSearch(vector<NdPos> &chrNode,vector<SimAnno> &assAnnoVec,int usize,ofstream &out,int &total){
+void rgSearch(vector<NdPos> &chrNode,vector<SimAnno> &assAnnoVec,int usize,size_t searchStart,size_t searchEnd,ofstream &out,int &total){
     size_t sPos = 0;
     //bool flag = true;
-    for(size_t i = 0; i < assAnnoVec.size(); ++i){
+    for(size_t i = searchStart; i < searchEnd; ++i){
         size_t tPos = sPos;
         for(size_t s = sPos; s < chrNode.size(); ++s){
             if(assAnnoVec[i].end < chrNode[s].start){
@@ -283,6 +283,19 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
             }
             // ref  {gSeqID,start,end,geneID,geneName,strand};
             if(isRef){
+                chrFind = true;
+            }else{
+                if(seqID != preSeqID){
+                    if(assChrPos.find(gSeqID) != assChrPos.end()){
+                        chrFind = true;
+                    }else{
+                        chrFind = false;
+                    }
+                }
+                
+            }
+            //
+            if(chrFind){
                 smatch s;
                 if(regex_search(attr,s,pat1)){
                     geneID = s[1];
@@ -296,67 +309,55 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
                     geneName = "unknown";
                 }
                 //
-                AnnoLine anno;
-                anno.seqid[FIELDSIZE-1] = '\0';
-                anno.geneID[FIELDSIZE-1] = '\0';
-                anno.geneName[FIELDSIZE-1] = '\0';
-                
-                strncpy(anno.seqid,gSeqID.c_str(),FIELDSIZE-1);
-                strncpy(anno.geneID,geneID.c_str(),FIELDSIZE-1);
-                strncpy(anno.geneName,geneName.c_str(),FIELDSIZE-1);
-                anno.strand = strand[0];
-                anno.start = start;
-                anno.end = end;
-                
-                out.write((char *)&anno,usize);
-                
-                ++total;
-                
-            }else{
-                if(seqID != preSeqID){
-                    if(chrFind){
-                        if(! assAnnoVec.empty()){
-                            sort(assAnnoVec.begin(),assAnnoVec.end(),byPos);
-                            vector<NdPos> &chrNode = assChrPos[preGid];
-                            rgSearch(chrNode,assAnnoVec,usize,out,total);
-                        }
-                    }
-                    assAnnoVec.clear();
-                    //
-                    if(assChrPos.find(gSeqID) != assChrPos.end()){
-                        chrFind = true;
-                    }else{
-                        chrFind = false;
-                    }
-                }
-                smatch s;
-                if(regex_search(attr,s,pat1)){
-                    geneID = s[1];
-                }else{
-                    geneID = "unknown";
-                }
-                
-                if(regex_search(attr,s,pat2)){
-                    geneName = s[1];
-                }else{
-                    geneName = "unknown";
-                }
-                
                 SimAnno tAnno = {gSeqID,start,end,geneID,geneName,strand};
                 assAnnoVec.push_back(tAnno);
             }
+            //
             preSeqID = seqID;
-            preGid = gSeqID;
         }
     }
     //
-    if(! isRef){
-        if(chrFind){
-            if(! assAnnoVec.empty()){
-                sort(assAnnoVec.begin(),assAnnoVec.end(),byPos);
+    sort(assAnnoVec.begin(),assAnnoVec.end(),byPos);
+    if(isRef){
+        for(SimAnno &xAnno : assAnnoVec){
+            AnnoLine anno;
+            anno.seqid[FIELDSIZE-1] = '\0';
+            anno.geneID[FIELDSIZE-1] = '\0';
+            anno.geneName[FIELDSIZE-1] = '\0';
+            
+            strncpy(anno.seqid,xAnno.seqid.c_str(),FIELDSIZE-1);
+            strncpy(anno.geneID,xAnno.geneID.c_str(),FIELDSIZE-1);
+            strncpy(anno.geneName,xAnno.geneName.c_str(),FIELDSIZE-1);
+            anno.strand = xAnno.strand[0];
+            anno.start = xAnno.start;
+            anno.end = xAnno.end;
+            
+            out.write((char *)&anno,usize);
+            
+            //++total;
+        }
+        total = assAnnoVec.size();
+    }else{
+        //[searchStart,searchEnd)
+        size_t searchStart = 0,searchEnd = 0;
+        for(size_t k = 0; k < assAnnoVec.size(); ++k){
+            gSeqID = assAnnoVec[k].seqid;
+            if(k > 0 && gSeqID != preGid){
+                searchEnd = k;
+                //
                 vector<NdPos> &chrNode = assChrPos[preGid];
-                rgSearch(chrNode,assAnnoVec,usize,out,total);
+                rgSearch(chrNode,assAnnoVec,usize,searchStart,searchEnd,out,total);
+                //
+                searchStart = k;
             }
+            //
+            preGid = gSeqID;
+        }
+        //
+        searchEnd = assAnnoVec.size();
+        if(searchEnd > 0){
+            vector<NdPos> &chrNode = assChrPos[preGid];
+            rgSearch(chrNode,assAnnoVec,usize,searchStart,searchEnd,out,total);
         }
     }
     //
