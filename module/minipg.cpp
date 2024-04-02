@@ -832,13 +832,22 @@ void GraphRange::readRefGene(string &ovFile,string &gDxFile,int chrNum,int sStar
     gf.close();
 }
 
-void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK){
+void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sStart,int sEnd,int lastLen,float wPerK){
     unordered_set<NodeType> retainID;
     map<NodeType,float> rNodeStart;
+    //
+    NodeType firId = 0,lastId = 0;
+    size_t lastPos = draw_pos.size() - 2;
     for(size_t i = 0; i < draw_pos.size(); i+=2){
         NodeType id = nnames[draw_node[i]["group"]];
         retainID.insert(id);
         rNodeStart.emplace(id,draw_pos[i]);
+        //
+        if(i == 0){
+            firId = id;
+        }else if(i == lastPos){
+            lastId = id;
+        }
     }
     vector<NodeGene> refNodeGene;
     readRefGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,retainID,refNodeGene);
@@ -849,17 +858,41 @@ void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sS
     map<string,FigGene>::iterator it;
     for(size_t i = 0; i < refNodeGene.size(); ++i){
         string geneName = refNodeGene[i].name;
-        float ndFigStart = rNodeStart[refNodeGene[i].node];
+        NodeType tid = refNodeGene[i].node;
+        float ndFigStart = rNodeStart[tid];
+        char tstrand = refNodeGene[i].strand;
 
         it = geneMap.find(geneName);
         if(it != geneMap.end()){
             (it->second).end = ndFigStart + (refNodeGene[i].len - 1) * wPerK;
+            //
+            if(tstrand == '+'){
+                if(tid == lastId){
+                    if(refNodeGene[i].reStart + refNodeGene[i].len == lastLen){
+                        (it->second).margin = '1';
+                    }
+                }
+            }
         }else{
             float geneStart = ndFigStart + refNodeGene[i].reStart * wPerK;
             float geneEnd = geneStart + (refNodeGene[i].len - 1) * wPerK;
             int layer = refNodeGene[i].layer;
-            char tstrand = refNodeGene[i].strand;
-            FigGene tf = {geneStart,geneEnd,layer,tstrand};
+            //char tstrand = refNodeGene[i].strand;
+            FigGene tf = {geneStart,geneEnd,layer,tstrand,'0'};
+            //
+            if(tstrand == '+'){
+                if(tid == lastId){
+                    if(refNodeGene[i].reStart + refNodeGene[i].len == lastLen){
+                        tf.margin = '1';
+                    }
+                }
+            }else{
+                if(tid == firId){
+                    if(refNodeGene[i].reStart == 0){
+                        tf.margin = '2';
+                    }
+                }
+            }
             geneMap.emplace(geneName,tf);
         }
     }
@@ -870,6 +903,7 @@ void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sS
         ndGenePos.push_back(tg.second.end);
         layerVec.push_back(tg.second.layer);
         strandVec.push_back(tg.second.strand);
+        mgFlagVec.push_back(tg.second.margin);
     }
 }
 //
@@ -1384,10 +1418,25 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             bool dRef = false;
             if(emp1 && emp2){
                 dRef = true;
-            }          
+            }
+            //
+            bool curRes = false;
+            bool linkOend = false,linkOte = false;
+            if(! dRef || (gNum == mnx)){
+                linkOend = true;
+            }
+            if(linkOend || (gNum == 0)){
+                linkOte = true;
+                curRes = true;
+            }else{
+                if(preOte && alink1 && alink2){
+                    curRes = true;
+                }
+            }
+            //
             if(gNum > 0){
                 node_pre += x_wCut;
-                if(! dRef || (gNum == mnx)){
+                if(curRes){
                     iNum += 1;
                     //
                     Ndic tdNode;
@@ -1417,7 +1466,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             
             float trans = node_len * wPerK;
             node_pre += trans;
-            if(! dRef || (gNum == 0) || (gNum == mnx)){
+            if(curRes){
                 iNum += 1;
                 //
                 Ndic tdNode;
@@ -1438,6 +1487,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             }
             gNum += 1;
             pre_node = tnode;
+            preOte = linkOte;
         }else{
             if(gNum > 0){
                 node_pre += x_wCut;
@@ -1609,6 +1659,15 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             hAssNode(ass,assNum,r_edge_dict,nid_dict);
         }
     }
+    //
+    string bwGeneFile = upDir + "/gene.ref.bw";
+    string gDxFile = upDir + "/gene.ref.bdx";
+    
+    int lastLen = 0;
+    if(! rangeNode.empty()){
+        lastLen = info[rangeNode.back()].len;
+    }
+    getFigGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,lastLen,wPerK);
 }
 
 //---------------
