@@ -36,7 +36,8 @@ typedef struct{
     float start;
     float end;
     int layer;
-    int strand;    
+    int strand;
+    char margin;
 } FigGene;
 
 inline void assSplit(const std::string &r_chr, const std::string &sep,std::string &tName,std::string &t_hap,std::string &tchr){
@@ -232,7 +233,7 @@ public:
     std::vector<int> layerVec;
     std::vector<char> strandVec;
     
-    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,bool sim,bool refSim);
+    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim);
     void edgeWrite(std::string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep);
     
 private:
@@ -276,7 +277,7 @@ private:
     void indexPath(std::string &assFile,std::string &eIndexFile,std::string &bEdgeFile,int nthread);
     //
     void readRefGene(std::string &ovFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,std::unordered_set<NodeType> &retainID,std::vector<NodeGene> &refNodeGene);
-    void getFigGene(std::string &bwGeneFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK);
+    void getFigGene(std::string &bwGeneFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,int lastLen,float wPerK);
 };
 
 
