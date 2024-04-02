@@ -1197,6 +1197,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
         //
         it = oedge.find(tnode);
         bool emp1 = true,emp2 = true;
+        bool alink1 = true,alink2 = true;
         if(it != oedge.end()){
             vector<NodeType> tNref;
             vector<int> deep;
@@ -1250,6 +1251,8 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                     NEdge sym = {tnode,o_node.node,o_node.mark};
                     r_edge_dict.emplace(sym,2);
                     emp1 = false;
+                    //
+                    alink1 = false;
                 }
             }
             
@@ -1361,6 +1364,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                         emp2 = false;
                         NEdge sym = {o_node.node,tnode,o_node.mark};
                         r_edge_dict.emplace(sym,2);
+                        //
+                        alink2 = false;
+                    
                 }
             }
             
