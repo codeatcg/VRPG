@@ -290,14 +290,14 @@
                         success: function(data){
                             var nodeHtml = "<h6>Segment Name:</h6>"; 
                             nodeHtml += `<p>${seg}</p>`;
-                            nodeHtml += "<h6>Segment Source:</h6>";
+                            nodeHtml += "<h5>Segment information \></h5><br><h6>Segment Source:</h6>";
                             nodeHtml += `<p>Assembly: ${data.nodeAss}<br>Chr: ${data.nodeChr}<br>Start: ${data.nodeStart}<br>End: ${data.nodeEnd}<br></p>`;
                             
                             nodeHtml += "<h6>GeneList:</h6>";
                             nodeHtml += "<table class='table table-striped'>";
-                            nodeHtml += "<thead><tr><th>Chr</th><th>Start</th><th>End</th><th>ID</th><th>Name</th><th>Strand</th></tr></thead><tbody>"
+                            nodeHtml += "<thead><tr><th>ID</th><th>Name</th><th>Assembly</th><th>Chr</th><th>Start</th><th>End</th><th>Strand</th></tr></thead><tbody>"
                             for (let m of data.geneList){
-                                nodeHtml += `<tr><td>${m[0]}</td><td>${m[1]}</td><td>${m[2]}</td><td>${m[3]}</td><td>${m[4]}</td><td>${m[5]}</td></tr>`
+                                nodeHtml += `<tr><td>${m[3]}</td><td><i>${m[4]}</i></td><td>${data.nodeAss}</td><td>${m[0]}</td><td>${m[1]}</td><td>${m[2]}</td><td>${m[5]}</td></tr>`
                             }
                             nodeHtml += "</tbody></table>";
                             
