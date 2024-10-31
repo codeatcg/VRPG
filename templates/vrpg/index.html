@@ -7,16 +7,16 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+
         <link rel="stylesheet" type="text/css" href="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
 
         <script src="https://cdn.staticfile.org/jquery/3.2.1/jquery.min.js"></script>
         <script src="https://cdn.staticfile.org/popper.js/1.15.0/umd/popper.min.js"></script>
         <script src="https://cdn.staticfile.org/twitter-bootstrap/4.3.1/js/bootstrap.min.js"></script>
-        
+
         <script src="https://cdn.staticfile.org/lodash.js/4.17.21/lodash.min.js"></script>
         <script src="https://cdn.staticfile.org/d3/6.7.0/d3.min.js"></script>
         <script src="https://cdn.staticfile.org/FileSaver.js/2.0.5/FileSaver.js"></script>
-        <script src="https://marvl.infotech.monash.edu/webcola/cola.min.js"></script>
     </head>
     
     <body>
@@ -51,86 +51,169 @@
             
             <div class="form-inline mt-2" style="width:1320px">
                 <select id="chrName" class="form-control" style="width:200px"></select>
-
-                <input id="startPos" value="1" type="number" min="1" class="form-control ml-2" style="width:200px">
-                <span class="mx-2">-</span>
-                <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:200px">
                 
-                <label for="shDep" class="ml-2">Search Depth</label>
-                <input id="shDep" value="10" type="number" min="1" class="form-control ml-1" style="width:150px">
-            
-                <button id="go" class="btn btn-primary  ml-2">Go</button>
+                <input id="startPos" value="1" type="number" min="1" class="form-control ml-3" style="width:210px">
+                <span class="mx-2">-</span>
+                <input id="endPos" value="10000" type="number" min="1"  class="form-control" style="width:210px">
+                
+                <label for="shDep" class="ml-2">Search depth</label>
+                <input id="shDep" value="10" type="number" min="1" max="100" class="form-control ml-1" style="width:150px">
+                
+                <button id="go" class="btn btn-primary  ml-3">Go</button>
                 <button id="mleft" class="btn"><img src="{% static 'images/arrowLeft3.png' %}"></img></button>
                 <button id="mright" class="btn"><img src="{% static 'images/arrowRight3.png' %}"></img></button>
-
+                
                 <button id="zoomIn" class="btn"><img src="{% static 'images/zoomIn2.png' %}"></img></button>
                 <button id="zoomOut" class="btn mr-2"><img src="{% static 'images/zoomOut2.png' %}"></img></button>
             </div>
-
+            
             <div class="form-inline mt-2" style="width:1320px">
                 <label for="centg">Layout</label>
                 <select id="centg" class="form-control ml-1" style="width:150px">
-                    <option value="sq">squeezed</option>
-                    <option value="ex">expanded</option>
-                    <option value="co">cola</option>
+                    <option value="utex">Ultra-expanded</option>
+                    <option value="ex">Expanded</option>
+                    <option value="sq">Squeezed</option>
+                    <option value="cosq">Hierarchical squeezed</option>
+                    <option value="coex">Hierarchical expanded</option>
                 </select>
-
+                
                 <label class="ml-3" for="sim">Simplify</label>
                 <select id="sim" class="form-control ml-1" style="width:150px">
-                    <option value="mr">non-ref nodes</option>
-                    <option value="mnr">all nodes</option>
-                    <option value="off">none</option>
+                    <option value="mr">Non-ref nodes</option>
+                    <option value="mnr">All nodes</option>
+                    <option value="off">None</option>
                 </select>
-
-                <label for="buFilt" class="ml-3">Bubble Filter</label>
+                
+                <label for="buFilt" class="ml-3">Min bubble size</label>
                 <input id="buFilt" value="50" type="number" min="0" class="form-control ml-1 mr-1" style="width:100px">
-                <image id="bubt" src="{% static 'images/question.svg' %}" data-toggle="tooltip" title="Filter top-level bubbles with the longest path < 'Bubble Filter' bp (accompanied with the option 'Simplify')"></image>
-            
-                <label class="ml-3" for="ass">Highlight</label>
-                <select id="ass" class="form-control ml-1"></select>
-
-                <button id="stopAni" class="btn btn-primary ml-3">&nbsp;&nbsp;Stop Animation&nbsp;&nbsp;</button>
-                <button id="savePlot" class="btn btn-primary ml-3">Save Image (*.svg)</button>
+                <image id="bubt" src="{% static 'images/question.png' %}" data-toggle="tooltip" title="Filter top-level bubbles with the longest path < 'Min bubble size' bp (accompanied with the option 'Simplify')"></image>
+                
+                <label class="ml-3" for="nodeType">Node</label>
+                <select id="nodeType" class="form-control ml-1">
+                    <option value="autoNode">Non-scaled</option>
+                    <option value="propt">Scaled</option>
+                </select>
+                
+                <label class="ml-3" for="edgeType">Edge</label>
+                <select id="edgeType" class="form-control ml-1">
+                    <option value="straight">Straight</option>
+                    <option value="curve">Curved</option>
+                </select>
             </div>
-    
-            <div id="Range"></div>
+            
+            <div class="mt-2" style="width:1320px">
+                <label>Path highlighting</label>
+                <button id="asmSel" type="button" class="btn dropdown-toggle" style="border-color:lightgray; width:150px">None selected</button>
+                <div id="asmCn" style="display:none">0</div>
+                <div id="dmenu" style="border:1px solid lightgray; border-radius:5px; width:200px; position:absolute; background-color:white; display:none">
+                    <div id="asm" style="height:200px; margin-left:20px; overflow:auto">
+                        
+                    </div>
+                </div>
+                
+                <button id="ghMap" class="btn btn-primary ml-3">Sequence-to-graph mapping</button>
+                <button id="stopAni" class="btn btn-primary ml-3">&nbsp;&nbsp;Stop optimization&nbsp;&nbsp;</button>
+                <button id="savePlot" class="btn btn-primary ml-3">Save image (*.svg)</button>
+            </div>
+            <div id="inSeq" style="width:1305px;border:1px solid lightgray; border-radius:5px; margin-top:15px; margin-bottom:5px; display:none">
+                <div style="margin:25px">
+                    <label for="dnaSeq">Query</label>
+                    <textarea id="dnaSeq" class="form-control" rows="5" placeholder="A DNA sequence in FASTA format"></textarea>
+                    <button id="runMap" class="btn btn-primary my-2">
+                        <span id="progress" class="spinner-border spinner-border-sm" style="display:none"></span>
+                        Submit
+                    </button>
+                    <div><p id="seqCheck" style="color:red"></p></div>
+                    <hr>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" id="vSeqMap" class="form-check-input">
+                        <label class="form-check-label" for="vSeqMap">View mapping results</label>
+                    </div>
+                    <br>
+                    <p>Task ID: <span id="taskid"></span></p>
+                    <p>Regions: </p>
+                    <div style="height:150px; overflow:auto">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>refChr</th><th>refStart</th><th>refEnd</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pRegion">
+                            
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="Range" class="mb-3"></div>
+
             <style>
+            .aTrack{
+                display: grid;
+                grid-template-columns: 1000px 300px;
+                grid-template-rows: 200px;
+                grid-gap: 5px;
+            }
+            
             .grid-container{
                 display: grid;
                 grid-template-columns: 1000px 300px;
-                grid-template-rows: 100px 500px;
-                grid-gap:5px;
-            }        
+                grid-template-rows: 500px 200px;
+                grid-gap: 5px;
+            }
+
             .item2{
+                grid-row-start: 2;
+                grid-row-end: 3;
+                grid-column-start: 1;
+            }
+            
+            .item3{
                 grid-row-start: 1;
                 grid-row-end: 3;
                 grid-column-start: 2;
                 grid-column-end: 3;
             }
-            .item3{
-                grid-row-start: 2;
-                grid-row-end: 3;
-                grid-column-start: 1;
-            }
+            
             </style>
+
             <div class="grid-container mt-2">
                 <div class="item1" style="border:1px solid lightgray;">
+                    <div>
+                        <svg id="mgraph"></svg>
+                    </div>
+                </div>
+                
+                <div class="item2" style="border:1px solid lightgray;">
                     <div>
                         <svg id="ref"></svg>
                     </div>
                 </div>
                 
-                <div class="item2" style="border:1px solid lightgray;">
-                    <div id='nodeInfo' style="width:300px; height:605px; overflow:auto">
+                <div class="item3" style="border:1px solid lightgray;">
+                    <div id='nodeInfo' style="width:300px; height:705px; overflow:auto">
                         <p style="color:gray; margin-top:290px">Click on the graph node in the left box to find more about its corresponding genomic segment.<p>
                     </div>
                 </div>
-                
-                <div class="item3" style="border:1px solid lightgray;">
+            </div>
+            
+            <div class="aTrack mt-2">
+                <div class="anno1" style="border:1px solid lightgray;">
                     <div>
-                        <svg id="mgraph"></svg>
+                        <svg id="ntrack"></svg>
                     </div>
                 </div>
+                
+                <div class="anno2" style="border:1px solid lightgray;">
+                
+                </div>
+            </div>
+            
+            <div id="seqAlign" class="mt-2" style="width:1305px;height:200px;border:1px solid lightgray;overflow:auto">
+            
             </div>
         </div>
 
@@ -138,284 +221,465 @@
         
         <script>
             var simulation;
-            var d3cola;
-            function graph(drawData){
-                var width = 1000;
-                var height = 500;
-                 $('#Range').html('');
-                if(drawData.nodes.length > 30000){
-                    $('#Range').html('<p style="color:red">Warning: too many nodes, browser may fail to render the page!</p>');
+        var regionLimit = 1000000;
+        function graph(drawData){
+            var width = 1000;
+            var height = 500;
+            
+            groups = _.uniq(_.map(drawData.nodes,d=>d.group));
+
+            groupData = _.groupBy(drawData.nodes,d=>d.group);
+            genome = _.uniq(drawData.genome);
+
+            //
+            $('#Range').html('');
+            if(drawData.nodes.length > 30000){
+                $('#Range').html('<p style="color:red">Warning: Too many nodes for rendering. Please define a smaller genomic region instead.</p>');
+            }
+            
+            if($('#centg').val() == "ex"){
+                simulation = d3.forceSimulation(drawData.nodes).alphaMin(0.2);
+                simulation.force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('charge', d3.forceManyBody().strength(-50))
+                    .force('link', d3.forceLink().links(drawData.links).strength(d=>{if(d.target.fx === undefined && d.source.fx === undefined){return 1}else{return 0.6}}).distance(d=>d.dis||drawData.figScale).iterations(1))
+                    .on('tick', ticked)
+                    .on('end',stablePos);
+            }else if($('#centg').val() == "utex"){
+                simulation = d3.forceSimulation(drawData.nodes).alphaMin(0.2);
+                simulation.force('charge', d3.forceManyBody().strength(-50))
+                    .force('link', d3.forceLink().links(drawData.links).strength(d=>{if(d.target.fx === undefined && d.source.fx === undefined){return 1}else{return 0.6}}).distance(d=>d.dis||drawData.figScale).iterations(1))
+                    .on('tick', ticked)
+                    .on('end',stablePos);
+            }else if($('#centg').val() == "sq"){
+                simulation = d3.forceSimulation(drawData.nodes).alphaMin(0.2);
+                simulation.force('link', d3.forceLink().links(drawData.links).strength(d=>{if(d.target.fx === undefined && d.source.fx === undefined){return 1}else{return 0.9}}).distance(d=>d.dis||drawData.figScale).iterations(2))
+                    .on('tick', ticked)
+                    .on('end',stablePos);
+            }else{              
+                let ghTop = 50, ghBottom=10;
+                // hierarchical height
+                let wsp = 50;
+                if(genome.length > 1){
+                    wsp = (500 - ghTop - ghBottom)/(genome.length-1)
                 }
-                if($('#centg').val() == "co"){
-                    if(drawData.nodes.length > 1000){
-                        $('#Range').append('<p style="color:red">Warning: too many nodes, cola layout was disabled!</p>');
-                        $('#centg').val("ex");
-                    }
+                if(wsp > 50){
+                    wsp = 50;
                 }
-                
-                if($('#centg').val() == "sq"){
-                    simulation = d3.forceSimulation(drawData.nodes)
-                        .force('charge', d3.forceManyBody().strength(-50))
-                        .force('link', d3.forceLink().links(drawData.links).strength(1).distance(d=>d.dis||50))
-                        .force('center', d3.forceCenter(width / 2, height / 2))
-                        .on('tick', ticked);
-                }else if($('#centg').val() == "ex"){
-                    simulation = d3.forceSimulation(drawData.nodes)
-                        .force('charge', d3.forceManyBody().strength(-50))
-                        .force('link', d3.forceLink().links(drawData.links).strength(1).distance(d=>d.dis||50))
-                        .on('tick', ticked);
+                //let hh = wsp * 0.4;
+                let hh = drawData.figScale;
+                let gmMap = new Map();
+                let sGenome = [...genome];
+                sGenome.sort(function(a,b){return +a - (+b)});
+                for(let p in sGenome){
+                    // 
+                    gmMap.set(sGenome[p],+p);
+                }
+
+                simulation = d3.forceSimulation(drawData.nodes).alphaMin(0.2);   
+                if($('#centg').val() == "coex"){
+                    simulation.force('charge', d3.forceManyBody().strength(-50));
+                } 
+                simulation.force('link', d3.forceLink().links(drawData.links).strength(d=>{if(d.target.fx === undefined && d.source.fx === undefined){return 1}else{return 0.6}}).distance(d=>{if(d.dis){return d.dis}else{
+                        let rank1 = gmMap.get(drawData.genome[d.source.group]); let rank2 = gmMap.get(drawData.genome[d.target.group]); let drank = rank2 - rank1; if(drank < 0){drank = -drank}
+                        let space; if(drank == 0){space = hh}else{space = drank * wsp} return space;
+                    }}).iterations(1))
+                    .force('y',d3.forceY().y(d=>{let rank = gmMap.get(drawData.genome[d.group]); if(rank==0){return 20} return ghTop + (rank - 1) * wsp}).strength(1))
+                    .on('tick', ticked)
+                    .on('end',stablePos);
+                    
+            }
+
+            var colors = d3.scaleOrdinal()
+                .domain(genome)
+                .range(d3.quantize(d3.interpolateRainbow,genome.length+1));
+         
+            var svg = d3.select("#mgraph").attr("viewBox",[0,0,width,height]);
+            svg.append("defs")
+                .append("marker")
+                .attr("id","arrEnd")
+                .attr("markerUnits","strokeWidth")
+                .attr("viewBox",[0,0,12,12])
+                .attr("markerWidth",12)
+                .attr("markerHeight",12)
+                .attr("orient","auto")
+                .attr("refX",6)
+                .attr("refY",6)
+                .append("path")
+                .attr("d","M2,3 L10,6 L2,9 L6,6 L2,3")
+                .attr("fill","red")
+            
+            svg.append("defs")
+                .append("marker")
+                .attr("id","arrStart")
+                .attr("markerUnits","strokeWidth")
+                .attr("viewBox",[0,0,12,12])
+                .attr("markerWidth",12)
+                .attr("markerHeight",12)
+                .attr("orient","auto")
+                .attr("refX",6)
+                .attr("refY",6)
+                .append("path")
+                .attr("d","M10,3 L2,6 L10,9 L6,6 L10,3")
+                .attr("fill","red")
+            
+            var svg2 = svg.append("g");
+         
+            var d_edge = svg2.append('g')
+                        .selectAll('path')
+                        .data(drawData.links)
+                        .join('path')
+                        .attr('stroke','#A6ACAF')
+                        .attr('fill','none')
+                        .attr('class',d=>{return 's_' + d.source.id + '_' + d.target.id + '_' + d.type})
+                        .on('click',e=>{var value = d3.select(e.target).attr('stroke');
+                            if(value == 'red'){d3.select(e.target).attr('stroke','#A6ACAF')}else{d3.select(e.target).attr('stroke','red')};
+                         });           
+                         
+            let asmVec = [];
+            let asmNum = parseInt($('#asmCn').text());
+            for(let n = 0; n < asmNum; n++){
+                if($('#ht_' + String(n)).prop('checked')){
+                    asmVec.push($('#lab_' + String(n)).text());
+                }
+            }
+            
+            for (let k in drawData.hLinks){
+                let h = drawData.hLinks[k];
+                if(drawData.hDir[k] == '1'){
+                    d3.select(`.s_${h}`).attr('stroke',"red").attr("marker-end","url(#arrEnd)");
                 }else{
-                    d3cola = cola.d3adaptor(d3)
-                        .size([1000, 500])
-                        .nodes(drawData.nodes)
-                        .links(drawData.links)
-                        .linkDistance(d=>{if(d.dis){if(d.dis<5){return 5}else{return d.dis}}else{return 50}})
-                        .avoidOverlaps(true)
-                        .handleDisconnected(false)
-                        .start(10)
-                        .convergenceThreshold(0.1)
-                        .on('tick', ticked);
-                        
+                    d3.select(`.s_${h}`).attr('stroke',"red").attr("marker-start","url(#arrStart)");
                 }
-                   
-                groups = _.uniq(_.map(drawData.nodes,d=>d.group));
-                //
-                groupData = _.groupBy(drawData.nodes,d=>d.group);
-                
-                genome = _.uniq(drawData.genome);
-                
-                
-                var colors = d3.scaleOrdinal()
-                    .domain(genome)
-                    .range(d3.quantize(d3.interpolateRainbow,genome.length));          
-                var svg = d3.select("#mgraph").attr("viewBox",[0,0,width,height]);
-                svg.append("defs")
-                    .append("marker")
-                    .attr("id","arrEnd")
-                    .attr("markerUnits","strokeWidth")
-                    .attr("viewBox",[0,0,12,12])
-                    .attr("markerWidth",12)
-                    .attr("markerHeight",12)
-                    .attr("orient","auto")
-                    .attr("refX",10)
-                    .attr("refY",6)
-                    .append("path")
-                    .attr("d","M2,3 L10,6 L2,9 L6,6 L2,3")
-                    .attr("fill","red")
-                
-                svg.append("defs")
-                    .append("marker")
-                    .attr("id","arrStart")
-                    .attr("markerUnits","strokeWidth")
-                    .attr("viewBox",[0,0,12,12])
-                    .attr("markerWidth",12)
-                    .attr("markerHeight",12)
-                    .attr("orient","auto")
-                    .attr("refX",2)
-                    .attr("refY",6)
-                    .append("path")
-                    .attr("d","M10,3 L2,6 L10,9 L6,6 L10,3")
-                    .attr("fill","red")
-                var svg2 = svg.append("g");
-                        
-                
-                var d_edge = svg2.append('g')
-                            .selectAll('path')
-                            .data(drawData.links)
-                            .join('path')
-                            .attr('stroke','#A6ACAF')
-                            .attr('fill','none')
-                            .attr('class',d=>{return 's_' + d.source.id + '_' + d.target.id + '_' + d.type})
-                            .on('click',e=>{var value = d3.select(e.target).attr('stroke');
-                                if(value == 'red'){d3.select(e.target).attr('stroke','#A6ACAF')}else{d3.select(e.target).attr('stroke','red')};
-                             });           
-                for (let k in drawData.hLinks){
-                    //
-                    let h = drawData.hLinks[k];
-                    //
-                    if(drawData.hDir[k] == '1'){
-                        d3.select(`.s_${h}`).attr('stroke','red').attr("marker-end","url(#arrEnd)");
-                    }else{
-                        d3.select(`.s_${h}`).attr('stroke','red').attr("marker-start","url(#arrStart)");
-                    }
-                }
-                var preEvent="";
-                var d_nodeLink = svg2.append('g')
-                            .selectAll('path')
-                            .data(groups)
-                            .join('path')
-                            .attr('stroke',d=>colors(drawData.genome[d]))
-                            .attr('stroke-width',10)
-                            .attr('stroke-opacity',0.3)
-                            .attr('fill','none')
-                            .attr('stroke-linejoin','round')
-                            .on('click',function(e,d){
-                                if(preEvent != ""){
-                                    d3.select(preEvent.target).style('stroke-width',10);
-                                }
-                                d3.select(e.target).style('stroke-width',20);
-                                preEvent = e;
-                                segAnno(d)}
-                            );
-                
-                var d_hnLink = svg2.append('g')
-                            .selectAll('path')
-                            .data(drawData.hnGroup)
-                            .join('path')
-                            .style('stroke','red')
-                            .style('stroke-width',(d,i)=>{if(+drawData.hnCov[i]<=1){return 2}else{return 5}})
-                            .style('stroke-dasharray',('3','3'))
-                            .style('fill','none')
-                            .attr('stroke-linejoin','round');
-                
-                function segAnno(d){
-                    var seg = drawData.nnames[d];
-                    var fData = new FormData();
-                    fData.append('species',$('#species').val());
-                    fData.append('seg',seg);
-                    var csrfToken = $("[name='csrfmiddlewaretoken']").val();
-                    fData.append('csrfmiddlewaretoken',csrfToken);
-                    
-                    $.ajax({
-                        url: "/app/vrpg/nodeInfo/",
-                        type: "POST",
-                        data: fData,
-                        contentType: false,
-                        processData: false,
-                    
-                        beforeSend: function(){
-                            $('#nodeInfo').html("")
-                        },
-                        
-                        success: function(data){
-                            var nodeHtml = "<h5>Segment information \></h5><br><h6>Segment name:</h6>"; 
-                            nodeHtml += `<p>${seg}</p>`;
-                            nodeHtml += "<h6>Segment source:</h6>";
-                            nodeHtml += `<p>Assembly: ${data.nodeAss}<br>Chr: ${data.nodeChr}<br>Start: ${data.nodeStart}<br>End: ${data.nodeEnd}<br></p>`;
-                            
-                            nodeHtml += "<h6>Gene list:</h6>";
-                            nodeHtml += "<table class='table table-striped'>";
-                            nodeHtml += "<thead><tr><th>ID</th><th>Name</th><th>Assembly</th><th>Chr</th><th>Start</th><th>End</th><th>Strand</th></tr></thead><tbody>"
-                            for (let m of data.geneList){
-                                nodeHtml += `<tr><td>${m[3]}</td><td><i>${m[4]}</i></td><td>${data.nodeAss}</td><td>${m[0]}</td><td>${m[1]}</td><td>${m[2]}</td><td>${m[5]}</td></tr>`
+            }
+
+            var preEvent="";
+            var initX = 0;
+            var initY = 0;
+            var offset = 10;
+            var d_nodeLink = svg2.append('g')
+                        .selectAll('path')
+                        .data(groups)
+                        .join('path')
+                        .attr('stroke',d=>colors(drawData.genome[d]))
+                        .attr('stroke-width',10)
+                        .attr('stroke-opacity',0.3)
+                        .attr('fill','none')
+                        .attr('stroke-linejoin','round')
+                        .on('click',function(e,d){
+                            if(preEvent != ""){
+                                d3.select(preEvent.target).style('stroke-width',10);
                             }
-                            nodeHtml += "</tbody></table>";
-                            
-                            nodeHtml += "<h6>Segment depth:</h6>";
+                            d3.select(e.target).style('stroke-width',20);
+                            preEvent = e;
+                            segAnno(d)}
+                        )
+                        .call(d3.drag().on("start",started)
+                                       .on("drag",draged)
+                        );
+
+                function started(e){
+                    initX = e.x;
+                    initY = e.y;
+                }
+                function draged(e,d){
+                    
+                    for(let m of groupData[d]){
+                        m.x += e.dx;
+                        m.y += e.dy;
+                    }
+                    
+                    d_edge.filter(k=>k.source.group == d || k.target.group == d)                        
+                        .attr('d',w=>{var path = d3.path();
+                            let tpoint_1 = contrPoint(w.source.id,w.source.group,offset);
+                            let tpoint_2 = contrPoint(w.target.id,w.target.group,offset);
+                                    
+                            path.moveTo(w.source.x,w.source.y);
+                            switch(+w.type){
+                                case 1:
+                                    path.lineTo(w.target.x,w.target.y);
+                                    break;
+                                case 2:
+                                    if(w.source.fx && w.target.fy){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1]+offset,tpoint_2[0],tpoint_2[1]+offset,w.target.x,w.target.y);
+                                    }else{
+                                        if($('#edgeType').val() == "curve"){
+                                            path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],w.target.x,w.target.y);
+                                        }else{
+                                            path.lineTo(w.target.x,w.target.y);
+                                        }
+                                    }
+                                    break;
+                                case 3:
+                                    if(w.source.fx && w.target.fy){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1]+offset,tpoint_2[0],tpoint_2[1]+offset,w.target.x,w.target.y);
+                                    }else{
+                                        if($('#edgeType').val() == "curve"){
+                                            path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],w.target.x,w.target.y);
+                                        }else{
+                                            path.lineTo(w.target.x,w.target.y);
+                                        }
+                                    }
+                                    break;
+                                case 4:
+                                    if(w.source.fx && w.target.fy){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1]-offset,tpoint_2[0],tpoint_2[1]-offset,w.target.x,w.target.y);
+                                    }else{
+                                        if($('#edgeType').val() == "curve"){
+                                            path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],w.target.x,w.target.y);
+                                        }else{
+                                            path.lineTo(w.target.x,w.target.y);
+                                        }
+                                    }
+                                    break; 
+                                case 5:
+                                    if(w.source.fx && w.target.fy){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1]-offset,tpoint_2[0],tpoint_2[1]-offset,w.target.x,w.target.y);
+                                    }else{
+                                        if($('#edgeType').val() == "curve"){
+                                            path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],w.target.x,w.target.y);
+                                        }else{
+                                            path.lineTo(w.target.x,w.target.y);
+                                        }
+                                    }
+                                    break;
+                                    
+                            }
+                                                  
+                            return path;
+                        });
+                    
+                    d3.select(this).attr('d',w=>{let groupPoint = groupData[w].map(n=>[n.x,n.y]); 
+                        return(d3.line()(groupPoint))
+                    });
+
+                    d_hnLink.filter(k=>k==d)
+                        .attr('d',w=>{let groupPoint = groupData[w].map(n=>[n.x,n.y]); 
+                        return(d3.line()(groupPoint))
+                    });
+                }
+
+            var d_hnLink = svg2.append('g')
+                        .selectAll('path')
+                        .data(drawData.hnGroup)
+                        .join('path')
+                        .style('stroke','red')
+                        .style('stroke-width',(d,i)=>{if(drawData.hnCov.length > 0){if(+drawData.hnCov[i]<=1){return 2}else{return 5}}else{return 2}})
+                        .style('stroke-dasharray',('3','3'))
+                        .style('fill','none')
+                        .attr('stroke-linejoin','round');
+            
+            function segAnno(d){
+                var seg = drawData.nnames[d];
+                var fData = new FormData();
+                fData.append('species',$('#species').val());
+                fData.append('seg',seg);
+                var csrfToken = $("[name='csrfmiddlewaretoken']").val();
+                fData.append('csrfmiddlewaretoken',csrfToken);
+                
+                $.ajax({
+                    url: "/app/vrpg/nodeInfo/",
+                    type: "POST",
+                    data: fData,
+                    contentType: false,
+                    processData: false,
+                
+                    beforeSend: function(){
+                        $('#nodeInfo').html("")
+                    },
+                    
+                    success: function(data){
+                        var nodeHtml = '<h5>Node information<br><button id="dwSeg" style="padding-left:0px" class="btn btn-link">[Download]</button></h5><h6>Node name:</h6>'; 
+                        nodeHtml += `<p>${seg}</p>`;
+                        nodeHtml += "<h6>Node source:</h6>";
+                        nodeHtml += `<p>Assembly: ${data.nodeAsm}<br>Chr: ${data.nodeChr}<br>Start: ${data.nodeStart}<br>End: ${data.nodeEnd}<br>Length: ${data.nodeEnd - data.nodeStart + 1}<br></p>`;
+                        
+                        nodeHtml += "<h6>Node sequence:</h6>";
+                        nodeHtml += `<p>${data.nodeSeq}</p>`
+                        
+                        nodeHtml += "<h6>Gene list:</h6>";
+                        nodeHtml += "<table class='table table-striped'>";
+                        nodeHtml += "<thead><tr><th>ID</th><th>Name</th><th>Assembly</th><th>Chr</th><th>Start</th><th>End</th><th>Strand</th></tr></thead><tbody>"
+                        for (let m of data.geneList){
+                            nodeHtml += `<tr><td>${m[3]}</td><td><i>${m[4]}</i></td><td>${data.nodeAsm}</td><td>${m[0]}</td><td>${m[1]}</td><td>${m[2]}</td><td>${m[5]}</td></tr>`
+                        }
+                        nodeHtml += "</tbody></table>";
+                        if(data.cov.length > 0){
+                            nodeHtml += "<h6>Node depth:</h6>";
                             nodeHtml += "<table class='table table-striped'>";
                             nodeHtml += "<thead><tr>";
                             nodeHtml += `<th>Assembly</th>`;
                             nodeHtml +=`<th>Depth</th>`;
                             nodeHtml += "</tr></thead>";
                             nodeHtml += "<tbody>";
-                            for(let k in data.ass){
-                                nodeHtml += `<tr><td>${data.ass[k]}</td><td>${data.cov[k]}</td></tr>`;
+                            for (let k in data.asm){
+                                nodeHtml += `<tr><td>${data.asm[k]}</td><td>${data.cov[k]}</td></tr>`;
                             }
                             nodeHtml += "</tbody>";
                             nodeHtml += "</table>";
-                            
-                            $('#nodeInfo').html(nodeHtml);
                         }
-                    });
-                }
-                
-                var svg3 = d3.select('#ref').attr('viewBox',[0,0,1000,100]);
-                var svg4 = svg3.append('g');
 
-                var maxLayer = d3.max(drawData.layerVec);
-                var layerHeight = 60 / maxLayer;
-                var recHeight = layerHeight / 8;
-                var startY = recHeight * 5;
-                var layerY = [];
-                for(let a = 0; a < maxLayer; a++){
-                  layerY.push(startY + a * layerHeight);
-                }
-                
-                var preGene = "";
-                var geneRec = svg2.append('rect')
-                    .style('fill','gray')
-                    .style('stroke','none')
-                    .style('opacity',0.2)
-                    .style('visibility','hidden')
-                    .attr('y',0)
-                    .attr('height',500);
-                var visGene = svg4.append('g')
-                    .style('visibility','hidden')
-                    .append('text')
-                    .attr('fill','black');
-                svg4.append('g')
-                    .selectAll('path')
-                    .data(drawData.geneVec)
-                    .join('path')
-                    .style('fill',(d,i)=>{if(drawData.strand[i] == '+'){return '#FFAB91'}else{return '#9FA8DA'}})
-                    .style('stroke','none')
-                    .attr('d',(d,i)=>{
-                        var tStartX = drawData.genePos[i*2];
-                        var tEndX = drawData.genePos[i*2+1];
-                        var tStartY = layerY[drawData.layerVec[i]-1];
-                        var awLen = (tEndX - tStartX) / 5;
-                        if(drawData.strand[i] == '+'){
-                            if(drawData.mgFlagVec[i] == '1'){
-                                return d3.line()(
-                                  [
-                                    [tStartX,tStartY],
-                                    [tEndX,tStartY],
-                                    [tEndX,tStartY+recHeight * 2],
-                                    [tStartX,tStartY+recHeight * 2],
-                                    [tStartX,tStartY]
-                                  ]
-                                );
-                            }else{
-                                return d3.line()(
-                                  [
-                                    [tStartX,tStartY],
-                                    [tEndX-awLen,tStartY],
-                                    [tEndX-awLen,tStartY-recHeight],
-                                    [tEndX,tStartY+recHeight],
-                                    [tEndX-awLen,tStartY+recHeight * 3],
-                                    [tEndX-awLen,tStartY+recHeight * 2],
-                                    [tStartX,tStartY+recHeight * 2],
-                                    [tStartX,tStartY]
-                                  ]
-                                );
-                            }
-                          
-                        }else{
-                            if(drawData.mgFlagVec[i] == '2'){
-                                return d3.line()(
-                                  [
-                                    [tEndX,tStartY],
-                                    [tStartX,tStartY],
-                                    [tStartX,tStartY+recHeight * 2],
-                                    [tEndX,tStartY+recHeight * 2],
-                                    [tEndX,tStartY]
-                                  ]
-                                );
-                            }else{
-                               return d3.line()(
-                                  [
-                                    [tEndX,tStartY],
-                                    [tStartX+awLen,tStartY],
-                                    [tStartX+awLen,tStartY-recHeight],
-                                    [tStartX,tStartY+recHeight],
-                                    [tStartX+awLen,tStartY+recHeight * 3],
-                                    [tStartX+awLen,tStartY+recHeight * 2],
-                                    [tEndX,tStartY+recHeight * 2],
-                                    [tEndX,tStartY]
-                                  ]
-                                );
-                            }
-                        }
+                        $('#nodeInfo').html(nodeHtml);
+                        //
                         
-                    })
-                    .on('click',(e,d)=>{
-                        var pt = d3.pointer(e);
+                        $('#dwSeg').on('click',function(){
+                            let txtSeg = `#Node source:\nAssembly: ${data.nodeAsm}\nChr: ${data.nodeChr}\nStart: ${data.nodeStart}\nEnd: ${data.nodeEnd}\nLength: ${data.nodeEnd - data.nodeStart + 1}\n`;
+                            txtSeg += `\n#Node sequence:\n${data.nodeSeq}\n`;
+                            
+                            txtSeg += "\n#Gene list:\n#ID\tName\tAssembly\tChr\tStart\tEnd\tStrand\n";
+                            for (let aa of data.geneList){
+                                txtSeg += `${aa[3]}\t${aa[4]}\t${data.nodeAsm}\t${aa[0]}\t${aa[1]}\t${aa[2]}\t${aa[5]}\n`;
+                            }
+                            if(data.cov.length > 0){
+                                txtSeg += "\n#Node depth:\n#Assembly\tDepth\n";
+                                for (let k in data.asm){
+                                    txtSeg += `${data.asm[k]}\t${data.cov[k]}\n`;
+                                }
+                            }
+                            let ndBlob = new Blob([txtSeg],{type:"text/plain;charset=utf8"});
+                            saveAs(ndBlob,"nodeInformation.txt");
+                        });
+                    }
+                });
+            }
+            <!------------------------------------->
+            var svg3 = d3.select('#ref').attr('viewBox',[0,0,1000,200]);            
+            var svg4 = svg3.append('g');
+            //
+            var axis = svg4.append('g');
+
+            axis.append('g').selectAll('path .tick')
+                .data(drawData.tickPos)
+                .join("path")
+                .attr('class',"tick")
+                .attr('stroke','#A6ACAF')
+                .attr('fill','none')
+                .attr('d',(d,i)=>{
+                    return d3.line()([[d,11],[d,16]])
+                });
+            axis.append('g').selectAll("text")
+                .data(drawData.tickValue)
+                .join("text")
+                .text(d=>d)
+                .attr("x",(d,i)=>drawData.tickPos[i])
+                .attr("y",10)
+                .attr("font-size",10);
+            axis.append('g').append("path")
+                .attr('stroke','#A6ACAF')
+                .attr('fill','none')
+                .attr('d',d3.line()([[drawData.tickPos[0],16],[drawData.tickPos.slice(-1),16]]));
+            //
+            var max1 = d3.max(drawData.layerVec);
+            var max2 = d3.max(drawData.eLayerVec);
+            var maxLayer = d3.max([max1,max2]);
+            if(! maxLayer){
+                maxLayer = 1;
+            }
+            var layerHeight = 160 / maxLayer;
+            if(layerHeight > 60){
+                layerHeight = 60;
+            }
+            var recHeight = layerHeight / 8;
+            //axis 16; move 20; distance -> 4 + layerHeight / 2
+            var startY = recHeight * 5 + 20;
+            var layerY = [];
+            for(let a = 0; a < maxLayer; a++){
+              layerY.push(startY + a * layerHeight);
+            }
+            
+            // gene arrow [4,8]
+            var geneRec = svg2.append('rect')
+                .attr('class','geneArea')
+                .style('fill','gray')
+                .style('stroke','none')
+                .style('opacity',0.2)
+                .style('visibility','hidden')
+                .attr('y',0)
+                .attr('height',500);
+            var visGene = svg4.append('g')
+                .style('visibility','hidden')
+                .append('text')
+                .attr('fill','black');
+                
+            var preGene = "";
+            svg4.append('g')
+                .selectAll('path')
+                .data(drawData.geneVec)
+                .join('path')
+                .style('fill',(d,i)=>{if(drawData.strand[i] == '+'){return '#FFAB91'}else{return '#9FA8DA'}})
+                .style('stroke','none')
+                .attr('d',(d,i)=>{
+                    let tStartX = drawData.genePos[i*2];
+                    let tEndX = drawData.genePos[i*2+1];
+                    let tStartY = layerY[drawData.layerVec[i]-1];
+                    let gLen = (tEndX - tStartX);
+                    let ap = 5;
+                    if(gLen < 20){
+                        ap = 2;
+                    }
+                    let awLen = (tEndX - tStartX) / ap;
+                    if(drawData.strand[i] == '+'){
+                        if(drawData.mgFlagVec[i] == '1'){
+                            return d3.line()(
+                              [
+                                [tStartX,tStartY],
+                                [tEndX,tStartY],
+                                [tEndX,tStartY+recHeight * 2],
+                                [tStartX,tStartY+recHeight * 2],
+                                [tStartX,tStartY]
+                              ]
+                            );
+                        }else{
+                            return d3.line()(
+                              [
+                                [tStartX,tStartY],
+                                [tEndX-awLen,tStartY],
+                                [tEndX-awLen,tStartY-recHeight],
+                                [tEndX,tStartY+recHeight],
+                                [tEndX-awLen,tStartY+recHeight * 3],
+                                [tEndX-awLen,tStartY+recHeight * 2],
+                                [tStartX,tStartY+recHeight * 2],
+                                [tStartX,tStartY]
+                              ]
+                            );
+                        }
+                      
+                    }else{
+                        if(drawData.mgFlagVec[i] == '2'){
+                            return d3.line()(
+                              [
+                                [tEndX,tStartY],
+                                [tStartX,tStartY],
+                                [tStartX,tStartY+recHeight * 2],
+                                [tEndX,tStartY+recHeight * 2],
+                                [tEndX,tStartY]
+                              ]
+                            );
+                        }else{
+                            return d3.line()(
+                              [
+                                [tEndX,tStartY],
+                                [tStartX+awLen,tStartY],
+                                [tStartX+awLen,tStartY-recHeight],
+                                [tStartX,tStartY+recHeight],
+                                [tStartX+awLen,tStartY+recHeight * 3],
+                                [tStartX+awLen,tStartY+recHeight * 2],
+                                [tEndX,tStartY+recHeight * 2],
+                                [tEndX,tStartY]
+                              ]
+                            );
+                        }
+                    }
+                    
+                })
+                .on('click',(e,d)=>{
+                    if($('.geneArea').css('visibility') == 'visible'){
                         if(d != preGene){
-                            var i = drawData.geneVec.indexOf(d);
-                            var tStartX = drawData.genePos[i*2];
-                            var tEndX = drawData.genePos[i*2+1];
-                            var gLen = tEndX - tStartX;
-                            var tcolor = "";
+                            var pt = d3.pointer(e);
+                            let i = drawData.geneVec.indexOf(d);
+                            let tStartX = drawData.genePos[i*2];
+                            let tEndX = drawData.genePos[i*2+1];
+                            let gLen = tEndX - tStartX;
+                            let tcolor = "";
                             if(drawData.strand[i] == '+'){
                                 tcolor = "#FFAB91";
                             }else{
@@ -431,363 +695,1200 @@
                                    .attr('text-anchor','start')
                                    .text(d);
                         }else{
-                            if($('rect').css('visibility') == 'visible'){
-                                geneRec.style('visibility','hidden');
-                                visGene.style('visibility','hidden');
+                            geneRec.style('visibility','hidden');
+                            visGene.style('visibility','hidden');
+                        }
+                    }else{
+                        var pt = d3.pointer(e);
+                        let i = drawData.geneVec.indexOf(d);
+                        let tStartX = drawData.genePos[i*2];
+                        let tEndX = drawData.genePos[i*2+1];
+                        let gLen = tEndX - tStartX;
+                        let tcolor = "";
+                        if(drawData.strand[i] == '+'){
+                            tcolor = "#FFAB91";
+                        }else{
+                            tcolor = "#9FA8DA";
+                        }
+                        geneRec.style('visibility','visible')
+                            .style('fill',tcolor)
+                            .attr('x',tStartX)
+                            .attr('width',gLen);
+                        visGene.style('visibility','visible')
+                               .attr('x',pt[0])
+                               .attr('y',pt[1]-recHeight*2)
+                               .attr('text-anchor','start')
+                               //.attr('font-style','italic')
+                               .text(d);
+                    }
+                    preGene = d;
+                });
+            
+            //-------------
+            var visRNA = svg4.append('g')
+                .append('text')                
+                .style('visibility','hidden')
+                .attr('fill','black');
+            //
+            var exPosY = [];
+            var cxPosY = [];
+            var exName = [];
+            var cxName = [];
+            var exonLink = [];
+            var exStrand = []
+            var exStart = 0;
+            var exEnd = 0;
+            var exY1 = 0;
+            var exY2 = 0;
+            var exHeight = recHeight * 2;
+            var cumA = 0;
+            
+            var tcNum = 0;
+            var gpMin = d3.min(drawData.genePos);
+            var gpMax = d3.max(drawData.genePos);
+            for(let ra of drawData.eNumVec){
+                if(ra > 0){
+                    // cumA  -- first exon for each RNA
+                    exY1 = layerY[drawData.eLayerVec[cumA]-1];
+                    exY2 = exY1 + recHeight;
+                    exEnd += ra * 2;
+                    //
+                    if(drawData.eFlagVec[tcNum] == '2' || drawData.eFlagVec[tcNum] == '3'){
+                        exonLink.push([[gpMin,exY2],[drawData.ndExonPos[0],exY2]]);
+                        exStrand.push(drawData.eStrandVec[cumA]);
+                    }
+                    // link -- previous end to next start
+                    for(let ax = exStart+1; ax < exEnd - 1; ax += 2){
+                        exonLink.push([[drawData.ndExonPos[ax],exY2],[drawData.ndExonPos[ax+1],exY2]]);
+                        exStrand.push(drawData.eStrandVec[cumA]);
+                        exPosY.push(exY1);
+                        //
+                        exName.push(tcNum);
+                    }
+                    //
+                    if(drawData.eFlagVec[tcNum] == '1' || drawData.eFlagVec[tcNum] == '3'){
+                        exonLink.push([[drawData.ndExonPos[exEnd - 1],exY2],[gpMax,exY2]]);
+                        exStrand.push(drawData.eStrandVec[cumA]);
+                    }
+                    //
+                    exPosY.push(exY1);
+                    exStart = exEnd;
+                    //
+                    exName.push(tcNum);
+                }
+                //
+                cumA += ra;
+                //
+                tcNum++;
+            }
+
+            
+            var cumB = 0;
+            tcNum = 0;
+            for(let rb of drawData.cNumVec){
+                if(rb > 0){
+                    exY1 = layerY[drawData.cLayerVec[cumB]-1];
+                    for(let ax = 0; ax < rb; ++ax){
+                        cxPosY.push(exY1);
+                        cxName.push(tcNum);
+                    }
+                }
+                cumB += rb;
+                //
+                tcNum++;
+            }
+            svg4.append('g')
+                .selectAll('rect')
+                .data(exName)
+                .join('rect')
+                .attr('fill','#AED6F1')
+                .attr('stroke','none')
+                .attr('x',(d,i)=>drawData.ndExonPos[i*2])
+                .attr('y',(d,i)=>exPosY[i])
+                .attr('width',(d,i)=>drawData.ndExonPos[i*2+1] - drawData.ndExonPos[i*2])
+                .attr('height',exHeight)
+                .on('mouseover',(e,d)=>{
+                    let pt = d3.pointer(e);
+                    visRNA.style('visibility','visible')
+                        .attr('x',pt[0])
+                        .attr('y',pt[1]-recHeight*2)
+                        .attr('text-anchor','start')
+                        .text(drawData.rnaVec[d]);
+                })
+                .on('mouseout',(e,d)=>{
+                    visRNA.style('visibility','hidden');
+                });
+                
+            svg4.append('g')
+                .selectAll('rect')
+                .data(cxName)
+                .join('rect')
+                .attr('fill','#2471A3')
+                .attr('stroke','none')
+                .attr('x',(d,i)=>drawData.ndCDSPos[i*2])
+                .attr('y',(d,i)=>cxPosY[i])
+                .attr('width',(d,i)=>drawData.ndCDSPos[i*2+1] - drawData.ndCDSPos[i*2])
+                .attr('height',exHeight)
+                .on('mouseover',(e,d)=>{
+                    let pt = d3.pointer(e);
+                    visRNA.style('visibility','visible')
+                        .attr('x',pt[0])
+                        .attr('y',pt[1]-recHeight*2)
+                        .attr('text-anchor','start')
+                        .text(drawData.cdsVec[d]);
+                })
+                .on('mouseout',(e,d)=>{
+                    visRNA.style('visibility','hidden');
+                });
+            
+            svg4.append('g')
+                .selectAll('path')
+                .data(exonLink)
+                .join('path')
+                .attr('fill','none')
+                .attr('stroke','#A6ACAF')
+                .attr('d',d=>d3.line()(d));
+                
+            svg4.append('g')
+                .selectAll('path')
+                .data(exonLink)
+                .join('path')
+                .attr('fill','none')
+                .attr('stroke','#A6ACAF')
+                .attr('d',(d,i)=>{
+                    let exLinkLen = d[1][0] - d[0][0];
+                    let eArrLen = exLinkLen / 4;
+                    let mid = (d[1][0] + d[0][0]) / 2;
+                    if(eArrLen > 6){
+                        eArrLen = 6;
+                    }
+                    let eArrVec;
+                    if(exStrand[i] == '+'){
+                        eArrVec = [
+                            [mid - eArrLen, d[0][1] - recHeight/2],
+                            [mid, d[0][1]],
+                            [mid - eArrLen, d[0][1] + recHeight/2]
+                        ];
+                    }else{
+                        eArrVec = [
+                            [mid + eArrLen, d[0][1] - recHeight/2],
+                            [mid, d[0][1]],
+                            [mid + eArrLen, d[0][1] + recHeight/2]
+                        ];
+                    }
+                    return d3.line()(eArrVec);
+                });
+            //------------
+            var svg5 = d3.select('#ntrack').attr('viewBox',[0,0,1000,200]);            
+            var svg6 = svg5.append('g');
+            if(drawData.tkNameVec.length > 0){  
+                var visBed = svg6.append('g')
+                .append('text')                
+                .style('visibility','hidden')
+                .attr('fill','black');
+                
+                // top and bottom margin: 20, 10
+                var tkY = 30;
+                var tkH = (200 - tkY)/drawData.tkNameVec.length;
+                // 
+                var preCum = 0;
+                //
+                var posCum = 0;
+                var scoreCum = 0;
+                var nameCum = 0;
+                var strandCum = 0;
+                
+                var p_posCum = 0;
+                var p_scoreCum = 0;
+                var p_nameCum = 0;
+                var p_strandCum = 0;
+                //
+                var tkStart = 20;
+                var tkColors;
+                if(drawData.tkNameVec.length < 9){
+                    tkColors = d3.scaleOrdinal()
+                    .domain(drawData.tkNameVec)
+                    .range(d3.schemeSet2);
+                }else{
+                    tkColors = d3.scaleOrdinal()
+                    .domain(drawData.tkNameVec)
+                    .range(d3.quantize(d3.interpolateRainbow,drawData.tkNameVec.length+3));
+                }
+                
+                let tkNameSize = tkH / 2;
+                if(tkNameSize > 12){
+                    tkNameSize = 12;
+                }
+                for(let i = 0; i < drawData.tkColVec.length; i++){
+                    let kColor = tkColors(drawData.tkNameVec[i]);
+                    let tcol = parseInt(drawData.tkColVec[i]);
+                    //
+                    let tkLayVec = [];
+                    let figH = 1;
+                    if(drawData.tkItem.length > 0){
+                        if(drawData.tkItem[i] > 0){
+                            posCum += drawData.tkItem[i];
+                            // start end layer
+                            let tkPosStart = [];
+                            let tkPosEnd = [];
+                            let tkPosLay = [];
+                            let tkPosName = [];
+                            let tkPosScore = [];
+                            let tkPosStrand = [];
+                            let quantity = false;
+                            let minVal;
+                            let maxVal;
+                            let tkInfo = drawData.tkDesVec[i];
+                            if(tcol == 3){
+                                for(let j = p_posCum; j < posCum; j++){
+                                    let t = j * 2;
+                                    tkPosStart.push(drawData.rBedPos[t]);
+                                    tkPosEnd.push(drawData.rBedPos[t+1]);
+                                    tkPosLay.push(drawData.rBedLayer[j]);
+                                }
+                            }else if(tcol == 4){
+                                nameCum += drawData.tkItem[i];
+                                //
+                                let nm = p_nameCum;
+                                for(let j = p_posCum; j < posCum; j++){
+                                    let t = j * 2;
+                                    tkPosStart.push(drawData.rBedPos[t]);
+                                    tkPosEnd.push(drawData.rBedPos[t+1]);
+                                    tkPosLay.push(drawData.rBedLayer[j]);
+                                    //
+                                    tkPosName.push(drawData.rBedName[nm]);
+                                    nm++;
+                                }
+                                
+                            }else if(tcol == 5){
+                                nameCum += drawData.tkItem[i];
+                                scoreCum += drawData.tkItem[i];
+                                //
+                                let sc = p_scoreCum;
+                                let nm = p_nameCum;
+                                for(let j = p_posCum; j < posCum; j++){
+                                    let t = j * 2;
+                                    tkPosStart.push(drawData.rBedPos[t]);
+                                    tkPosEnd.push(drawData.rBedPos[t+1]);
+                                    tkPosLay.push(drawData.rBedLayer[j]);
+                                    //
+                                    if(j == p_posCum){
+                                        minVal = parseFloat(drawData.rBedScore[sc]);
+                                        maxVal = parseFloat(drawData.rBedScore[sc]);
+                                        
+                                    }else{
+                                        if(parseFloat(drawData.rBedScore[sc]) < minVal){
+                                            minVal = parseFloat(drawData.rBedScore[sc]);
+                                        }
+                                        if(parseFloat(drawData.rBedScore[sc]) > maxVal){
+                                             maxVal = parseFloat(drawData.rBedScore[sc]);
+                                        }
+                                    }
+                                    tkPosName.push(drawData.rBedName[nm]);
+                                    tkPosScore.push(drawData.rBedScore[sc]);
+                                    nm++;
+                                    sc++;
+                                }
+                                if(maxVal - minVal > 0.0001){
+                                    quantity = true;
+                                }
                             }else{
-                                geneRec.style('visibility','visible');
-                                visGene.style('visibility','visible')
-                                   .attr('x',pt[0])
-                                   .attr('y',pt[1]-recHeight*2)
-                                   .attr('text-anchor','start')
-                                   .text(d);
+                                nameCum += drawData.tkItem[i];
+                                scoreCum += drawData.tkItem[i];
+                                strandCum += drawData.tkItem[i];
+                                //
+                                let sc = p_scoreCum;
+                                let sn = p_strandCum;
+                                let nm = p_nameCum;
+                                for(let j = p_posCum; j < posCum; j++){
+                                    let t = j * 2;
+                                    tkPosStart.push(drawData.rBedPos[t]);
+                                    tkPosEnd.push(drawData.rBedPos[t+1]);
+                                    tkPosLay.push(drawData.rBedLayer[j]);
+                                    //
+                                    if(j == p_posCum){
+                                        minVal = parseFloat(drawData.rBedScore[sc]);
+                                        maxVal = parseFloat(drawData.rBedScore[sc]);
+                                        
+                                    }else{
+                                        if(parseFloat(drawData.rBedScore[sc]) < minVal){
+                                            minVal = parseFloat(drawData.rBedScore[sc]);
+                                        }
+                                        if(parseFloat(drawData.rBedScore[sc]) > maxVal){
+                                             maxVal = parseFloat(drawData.rBedScore[sc]);
+                                        }
+                                    }
+                                    tkPosName.push(drawData.rBedName[nm]);
+                                    tkPosScore.push(drawData.rBedScore[sc]);
+                                    tkPosStrand.push(drawData.rBedStrand[sn]);
+                                    nm++;
+                                    sc++;
+                                    sn++;
+                                }
+                                if(maxVal - minVal > 0.0001){
+                                    quantity = true;
+                                }
+                            }
+                            //-----------------
+                            let minLay = d3.min(tkPosLay);
+                            let maxLay = d3.max(tkPosLay);
+                            let tkLayCn = maxLay - minLay + 1;
+                            let layH = tkH / tkLayCn;
+                            let rectH = layH / 4;
+                            figH = rectH * 2;
+                            if(figH > 20){
+                                figH = 20;
+                            }
+                            let tkFirH = tkStart + figH/2;
+                            for(let x = 0; x < tkLayCn; x++){     
+                                tkLayVec.push(tkFirH);
+                                tkFirH += layH;
+                            }
+                            if(quantity){
+                                if(minVal >= 0){
+                                    //let lowVal = 0;
+                                    let ratio = figH / maxVal;          
+                                    //let maxFig = tkLayVec[tkPosLay[i]-minLay] + figH;
+                                    let maxFig = tkLayVec[0] + figH;
+                                    // y: maxFig - (curVal - lowVal) * ratio;
+                                    // h: (curVal - lowVal) * ratio;
+                                    svg6.append("g")
+                                        .selectAll("rect")
+                                        .data(tkPosStart)
+                                        .join("rect")
+                                        .attr("x",(d,i)=>tkPosStart[i])
+                                        .attr("y",(d,i)=>{return maxFig - (+tkPosScore[i]) * ratio})
+                                        .attr("width",(d,i)=>+tkPosEnd[i]-tkPosStart[i])
+                                        .attr("height",(d,i)=>(+tkPosScore[i]) * ratio)
+                                        .attr("fill",kColor)
+                                        .attr("stroke","none");
+                                }else{
+                                    let ratio;
+                                    let zeroFig;
+                                    if(maxVal >= 0){
+                                        ratio = figH / (maxVal - minVal);
+                                        zeroFig = tkLayVec[0] + maxVal * ratio;
+                                    }else{
+                                        zeroFig = tkLayVec[0];
+                                        ratio = figH / (-minVal);
+                                    }
+                                    svg6.append("g")
+                                        .selectAll("rect")
+                                        .data(tkPosStart)
+                                        .join("rect")
+                                        .attr("x",(d,i)=>tkPosStart[i])
+                                        .attr("y",(d,i)=>{if(tkPosScore[i] >= 0){let tv = zeroFig - tkPosScore[i] * ratio; return tv;}else{return zeroFig;}})
+                                        .attr("width",(d,i)=>+tkPosEnd[i]-tkPosStart[i])
+                                        .attr("height",(d,i)=>{if(tkPosScore[i] >= 0){let tv = tkPosScore[i] * ratio; return tv;}else{let tv = -tkPosScore[i] * ratio; return tv;}})
+                                        .attr("fill",kColor)
+                                        .attr("stroke","none");
+                                }
+                                
+                                let v1 = minVal.toFixed(3);
+                                let v2 = maxVal.toFixed(3);
+                                tkInfo += ` (value range in the displayed region: [${v1},${v2}])`;
+                            }else{
+                                let sName = "track"+String(i);
+                                svg6.append("g")
+                                    .attr("class",sName)
+                                    .selectAll("rect")
+                                    .data(tkPosName)
+                                    .join("rect")
+                                    .attr("x",(d,i)=>tkPosStart[i])
+                                    .attr("y",(d,i)=>tkLayVec[tkPosLay[i]-minLay])
+                                    .attr("width",(d,i)=>+tkPosEnd[i]-tkPosStart[i])
+                                    .attr("height",figH)
+                                    .attr("fill",kColor)
+                                    .attr("stroke","none")
+                                    .on('mouseover',(e,d)=>{
+                                        //
+                                        if(tcol == 4 || tcol == 5){
+                                            let pt = d3.pointer(e);
+                                            visBed.style('visibility','visible')
+                                                .attr('x',pt[0])
+                                                .attr('y',pt[1]-figH)
+                                                .attr('text-anchor','start')
+                                                .text(d);
+                                        }
+                                    })
+                                    .on('mouseout',(e,d)=>{
+                                        visBed.style('visibility','hidden');
+                                    });
+                                // show direction
+                                if(tcol > 5){
+                                    svg6.append("g")
+                                        .selectAll("path")
+                                        .data(tkPosStart)
+                                        .join("path")
+                                        .attr("d",(d,i)=>{
+                                                let midX = (+tkPosStart[i] + tkPosEnd[i]) / 2;
+                                                let aLen = (+tkPosEnd[i] - tkPosStart[i]) / 8;
+                                                if(aLen > 10){
+                                                    aLen = 10;
+                                                }
+                                                if(aLen < 3){
+                                                    aLen *= 2; 
+                                                }
+                                                //
+                                                if(tkPosStrand[i] == '+'){
+                                                    return d3.line()([[midX,tkLayVec[tkPosLay[i]-minLay]],[midX+aLen,tkLayVec[tkPosLay[i]-minLay]+figH/2],[midX,tkLayVec[tkPosLay[i]-minLay]+figH]]);
+                                                }else{
+                                                    return d3.line()([[midX,tkLayVec[tkPosLay[i]-minLay]],[midX-aLen,tkLayVec[tkPosLay[i]-minLay]+figH/2],[midX,tkLayVec[tkPosLay[i]-minLay]+figH]]);
+                                                }
+                                        });
+                                }
+                            }
+                            //
+                            
+                            // figH/2 -> figH*0.4;   font-size 15 -> figH * 0.75 -> tkH/2
+                            svg6.append('g')
+                                .append('text')
+                                .attr('text-anchor','middle')
+                                .attr('x',500)
+                                .attr('y',tkStart+figH*0.4)
+                                .style('font-size',tkNameSize)
+                                .style('fill',kColor)
+                                .text(tkInfo);
+                        }else{
+                            figH = tkH/2;
+                            if(figH > 20){
+                                figH = 20;
                             }
                         }
-                        
-                        preGene = d;
-                    });
-                
-                svg4.append('g')
-                    .append('text')
-                    .attr('text-anchor','middle')
-                    .attr('transform','translate(15,50) rotate(-90)')
-                    .style('font-size',15)
-                    .style('fill','#3F51B5')
-                    .text('Ref Gene');
-                    
-                svg2.append('g')
-                    .append('text')
-                    .attr('text-anchor','middle')
-                    .attr('transform','translate(15,250) rotate(-90)')
-                    .style('font-size',15)
-                    .style('fill','#3F51B5')
-                    .text('Pangenome Graph');
-                
-                function zoomed(e){
-                        svg2.attr("transform",e.transform);
-                        svg4.attr("transform",`translate(${e.transform.x},0) scale(${e.transform.k})`);
-                };
-                
-                zoomFun = d3.zoom()
-                           .extent([[0,0],[width,height]])
-                           .scaleExtent([0.01,500])
-                           .on("zoom",zoomed);
-                           
-                svg.call(zoomFun);
-                svg3.call(zoomFun);
-                           
-                $('#zoomIn').on("click",function(){
-                    svg.transition().call(zoomFun.scaleBy,1.25);
-                });
-                
-                $('#zoomOut').on("click",function(){
-                    svg.transition().call(zoomFun.scaleBy,0.8);
-                });
-
-                let tAlpha = 0;
-                let iter = 0;
-                function ticked(){
-                    //let value = simulation.alpha();
-                    //simulation.force('charge', d3.forceManyBody().strength(-50*value));
-                    
-                    if($('#centg').val() == "co"){
-                        ++iter;
-                        if(iter > 3000){
-                            d3cola.stop();
+                    }else{
+                        figH = tkH/2;
+                        if(figH > 20){
+                            figH = 20;
                         }
                     }
-                    var k = 50;             
-                    d_edge.attr('d',d=>{var path = d3.path();
+                    //
+                    svg6.append('g')
+                        .append('text')
+                        .attr('text-anchor','end')
+                        .attr('x',50)
+                        .attr('y',tkStart + figH * 1.5)
+                        .attr('dx','-0.5em')
+                        .attr('dy','-0.5em')
+                        .style('font-size',tkNameSize)
+                        .style('fill','#3F51B5')
+                        .text(drawData.tkNameVec[i]);
+                    //
+                    tkStart += tkH;
+                    p_posCum = posCum;
+                    p_scoreCum = scoreCum;
+                    p_nameCum = nameCum;
+                    p_strandCum = strandCum;
+                }
+            }
+            //------------
+            svg4.append('g')
+                .append('text')
+                .attr('text-anchor','middle')
+                .attr('transform','translate(15,50) rotate(-90)')
+                .style('font-size',15)
+                .style('fill','#3F51B5')
+                .text('Gene annotation');
                 
+            svg2.append('g')
+                .append('text')
+                .attr('text-anchor','middle')
+                .attr('transform','translate(15,250) rotate(-90)')
+                .style('font-size',15)
+                .style('fill','#3F51B5')
+                .text('Pangenome Graph');
+
+            <!------------------------------------->
+            var trans2 = {'x':0,'y':0,'k':1};
+            var trans4 = {'x':0,'y':0,'k':1};
+            var trans6 = {'x':0,'y':0,'k':1};
+            function zoomed1(e){
+                    svg2.attr("transform",e.transform);
+                    svg4.attr("transform",`translate(${e.transform.x},${trans4.y}) scale(${e.transform.k})`);
+                    svg6.attr("transform",`translate(${e.transform.x},${trans6.y}) scale(${e.transform.k})`);
+                    trans2 = e.transform;
+                    trans4.x = trans2.x;
+                    trans6.x = trans2.x;
+                    // trans4.y  fixed
+                    trans4.k = trans2.k;
+                    trans6.k = trans2.k;
+            };
+            
+            zoomFun1 = d3.zoom()
+                       .extent([[0,0],[width,height]])
+                       .scaleExtent([0.01,500])
+                       .on("start",function(e){e.transform.x = trans2.x; e.transform.y = trans2.y; e.transform.k = trans2.k;})
+                       .on("zoom",zoomed1);
+                       
+            svg.call(zoomFun1);
+            //---------------------------
+            function zoomed2(e){
+                    svg4.attr("transform",e.transform);
+                    svg2.attr("transform",`translate(${e.transform.x},${trans2.y}) scale(${e.transform.k})`);
+                    svg6.attr("transform",`translate(${e.transform.x},${trans6.y}) scale(${e.transform.k})`);
+                    trans4 = e.transform;
+                    trans2.x = trans4.x;
+                    trans6.x = trans4.x;
+                    // trans2.y   fixed
+                    trans2.k = trans4.k;
+                    trans6.k = trans4.k;
+            };
+                        
+            zoomFun2 = d3.zoom()
+                       .extent([[0,0],[width,height]])
+                       .scaleExtent([0.01,500])
+                       .on("start",function(e){e.transform.x = trans4.x; e.transform.y = trans4.y; e.transform.k = trans4.k})
+                       .on("zoom",zoomed2);
+
+            svg3.call(zoomFun2);
+            //---------------------------
+            function zoomed3(e){
+                    svg6.attr("transform",e.transform);
+                    svg2.attr("transform",`translate(${e.transform.x},${trans2.y}) scale(${e.transform.k})`);
+                    svg4.attr("transform",`translate(${e.transform.x},${trans4.y}) scale(${e.transform.k})`);
+                    trans6 = e.transform;
+                    trans2.x = trans6.x;
+                    trans4.x = trans6.x;
+                    //
+                    trans2.k = trans6.k;
+                    trans4.k = trans6.k;
+            };
+                        
+            zoomFun3 = d3.zoom()
+                       .extent([[0,0],[width,height]])
+                       .scaleExtent([0.01,500])
+                       .on("start",function(e){e.transform.x = trans6.x; e.transform.y = trans6.y; e.transform.k = trans6.k})
+                       .on("zoom",zoomed3);
+
+            svg5.call(zoomFun3);
+            //---------------------------           
+            $('#zoomIn').on("click",function(){
+                svg.transition().call(zoomFun1.scaleBy,1.25);
+                svg3.transition().call(zoomFun2.scaleBy,1.25);
+                svg5.transition().call(zoomFun3.scaleBy,1.25);
+            });
+            
+            $('#zoomOut').on("click",function(){
+                svg.transition().call(zoomFun1.scaleBy,0.8);
+                svg3.transition().call(zoomFun2.scaleBy,0.8);
+                svg5.transition().call(zoomFun3.scaleBy,0.8);
+            });
+            
+            //-----------------------
+            function nodeControl(x1,y1,x2,y2,offset){
+                let x,y,r,sinA,cosA,x3,y3,x4,y4,sign;
+                x = x2 - x1;
+                y = y2 - y1;
+                r = Math.sqrt(x * x + y * y);
+                sinA = y / r;
+                cosA = x / r;
+                x4 = x2 + offset * cosA;
+                y4 = y2 + offset  * sinA;
+                x3 = x1 - offset * cosA;
+                y3 = y1 - offset * sinA;
+                //
+                return ({"x": x3, "y": y3, "xB": x4, "yB": y4});
+            }
+            
+            function rnodeControl(x1,y1,x2,y2,offset){
+                let x3,y3,x4,y4;
+
+                x4 = x2 + offset;
+                y4 = y2
+                x3 = x1 - offset
+                y3 = y1
+                //
+                return ({"x": x3, "y": y3, "xB": x4, "yB": y4});
+            }
+            
+            function contrPoint(id,group,offset){
+                let x1,y1,x2,y2,tCon,n;
+                //
+                if(id == groupData[group][0].id){
+                    if(groupData[group][0].fx){
+                        x1 = groupData[group][0].fx;
+                        y1 = groupData[group][0].fy;
+                        x2 = groupData[group][1].fx;
+                        y2 = groupData[group][1].fy;
+                        tCon = rnodeControl(x1,y1,x2,y2,offset)
+                    }else{
+                        x1 = groupData[group][0].x;
+                        y1 = groupData[group][0].y;
+                        x2 = groupData[group][1].x;
+                        y2 = groupData[group][1].y;
+                        tCon = nodeControl(x1,y1,x2,y2,offset)
+                    }
+               
+                    return [tCon.x,tCon.y];
+                }else{                
+                    n = groupData[group].length
+                    if(groupData[group][n-2].fx){
+                        x1 = groupData[group][n-2].fx;
+                        y1 = groupData[group][n-2].fy;
+                        x2 = groupData[group][n-1].fx;
+                        y2 = groupData[group][n-1].fy;
+                        tCon = rnodeControl(x1,y1,x2,y2,offset)
+                    }else{
+                        x1 = groupData[group][n-2].x;
+                        y1 = groupData[group][n-2].y;
+                        x2 = groupData[group][n-1].x;
+                        y2 = groupData[group][n-1].y;
+                        tCon = nodeControl(x1,y1,x2,y2,offset)
+                    }
+                     
+                    return [tCon.xB,tCon.yB];
+                }
+            }
+            
+            function ticked(){
+
+                d_edge.attr('d',d=>{var path = d3.path();                
+                    let tpoint_1 = contrPoint(d.source.id,d.source.group,offset);
+                    let tpoint_2 = contrPoint(d.target.id,d.target.group,offset);
+                    path.moveTo(d.source.x,d.source.y);
+                    switch(+d.type){
+                        case 1:
+                            path.lineTo(d.target.x,d.target.y);
+                            break;
+                        case 2:
+                            if(d.source.fx && d.target.fy){
+                                path.bezierCurveTo(tpoint_1[0],tpoint_1[1]+offset,tpoint_2[0],tpoint_2[1]+offset,d.target.x,d.target.y);
+                            }else{
+                                if($('#edgeType').val() == "curve"){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                }else{
+                                    path.lineTo(d.target.x,d.target.y);
+                                }
+                            }
+                            break;
+                        case 3:
+                            if(d.source.fx && d.target.fy){
+                                path.bezierCurveTo(tpoint_1[0],tpoint_1[1]+offset,tpoint_2[0],tpoint_2[1]+offset,d.target.x,d.target.y);
+                            }else{
+                                if($('#edgeType').val() == "curve"){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                }else{
+                                    path.lineTo(d.target.x,d.target.y);
+                                }
+                            }
+                            break;
+                        case 4:
+                            if(d.source.fx && d.target.fy){
+                                path.bezierCurveTo(tpoint_1[0],tpoint_1[1]-offset,tpoint_2[0],tpoint_2[1]-offset,d.target.x,d.target.y);
+                            }else{
+                                if($('#edgeType').val() == "curve"){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                }else{
+                                    path.lineTo(d.target.x,d.target.y);
+                                }
+                            }
+                            break; 
+                        case 5:
+                            if(d.source.fx && d.target.fy){
+                                path.bezierCurveTo(tpoint_1[0],tpoint_1[1]-offset,tpoint_2[0],tpoint_2[1]-offset,d.target.x,d.target.y);
+                            }else{
+                                if($('#edgeType').val() == "curve"){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                }else{
+                                    path.lineTo(d.target.x,d.target.y);
+                                }
+                            }
+                            break;
+                    }
+                    return path;
+                });
+            
+                d_nodeLink.attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
+                    return(d3.line()(groupPoint))
+                });
+                
+                d_hnLink.attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
+                    return(d3.line()(groupPoint))
+                });
+            }
+            //
+            function stablePos(){
+                if($('#nodeType').val() == "propt"){
+                    for(let xLink of drawData.links){
+                        if(xLink.dis != undefined){
+                            let x1 = xLink.source.x;
+                            let y1 = xLink.source.y;
+                            let x2 = xLink.target.x;
+                            let y2 = xLink.target.y;
+                            let dis = xLink.dis;
+                            let x = x2 - x1;
+                            let y = y2 - y1;
+                            let l = Math.sqrt(x * x + y * y);
+                            let r = dis / l;
+                            
+                            let tx,ty;
+                            tx  = x1 + x * r;
+                            ty = y1 + y * r;
+                            
+                            xLink.target.x = tx;
+                            xLink.target.y = ty;                       
+                        }
+                    }
+                    //         
+                    d_edge.transition().duration(800).attr('d',d=>{var path = d3.path();
+                        let tpoint_1 = contrPoint(d.source.id,d.source.group,offset);
+                        let tpoint_2 = contrPoint(d.target.id,d.target.group,offset);
+                        path.moveTo(d.source.x,d.source.y);
                         switch(+d.type){
                             case 1:
-                                path.moveTo(d.source.x,d.source.y);
                                 path.lineTo(d.target.x,d.target.y);
                                 break;
                             case 2:
-                                path.moveTo(d.source.x,d.source.y);
-                                path.bezierCurveTo(d.source.x+k,d.source.y+k,d.target.x-k,d.target.y+k,d.target.x,d.target.y);
+                                if(d.source.fx && d.target.fy){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1]+offset,tpoint_2[0],tpoint_2[1]+offset,d.target.x,d.target.y);
+                                }else{
+                                    if($('#edgeType').val() == "curve"){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                    }else{
+                                        path.lineTo(d.target.x,d.target.y);
+                                    }
+                                }
                                 break;
                             case 3:
-                                path.moveTo(d.source.x,d.source.y);
-                                path.bezierCurveTo(d.source.x+k,d.source.y+k,d.target.x+k,d.target.y+k,d.target.x,d.target.y);
+                                if(d.source.fx && d.target.fy){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1]+offset,tpoint_2[0],tpoint_2[1]+offset,d.target.x,d.target.y);
+                                }else{
+                                    if($('#edgeType').val() == "curve"){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                    }else{
+                                        path.lineTo(d.target.x,d.target.y);
+                                    }
+                                }
                                 break;
                             case 4:
-                                path.moveTo(d.source.x,d.source.y);
-                                path.bezierCurveTo(d.source.x-k,d.source.y-k,d.target.x-k,d.target.y-k,d.target.x,d.target.y);
+                                if(d.source.fx && d.target.fy){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1]-offset,tpoint_2[0],tpoint_2[1]-offset,d.target.x,d.target.y);
+                                }else{
+                                    if($('#edgeType').val() == "curve"){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                    }else{
+                                        path.lineTo(d.target.x,d.target.y);
+                                    }
+                                }
                                 break; 
                             case 5:
-                                path.moveTo(d.source.x,d.source.y);
-                                path.bezierCurveTo(d.source.x-k,d.source.y-k,d.target.x+k,d.target.y-k,d.target.x,d.target.y);
+                                if(d.source.fx && d.target.fy){
+                                    path.bezierCurveTo(tpoint_1[0],tpoint_1[1]-offset,tpoint_2[0],tpoint_2[1]-offset,d.target.x,d.target.y);
+                                }else{
+                                    if($('#edgeType').val() == "curve"){
+                                        path.bezierCurveTo(tpoint_1[0],tpoint_1[1],tpoint_2[0],tpoint_2[1],d.target.x,d.target.y);
+                                    }else{
+                                        path.lineTo(d.target.x,d.target.y);
+                                    }
+                                }
                                 break;
                                 
                         }
                         return path;
                     });
                 
-                    d_nodeLink.attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
-                        //console.log(groupPoint)
-                        //const hullData = d3.polygonHull(groupPoint);
+                    d_nodeLink.transition().duration(800).attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
                         return(d3.line()(groupPoint))
                     });
                     
                     d_hnLink.attr('d',d=>{let groupPoint = groupData[d].map(n=>[n.x,n.y]); 
                         return(d3.line()(groupPoint))
                     });
-                    
-                    //simulation.stop();
                 }
             }
+        }
 
-            function plotGraph(){
-                var fData = new FormData();
-                fData.append('species',$('#species').val());
-                fData.append('tchr',$('#chrName').val());
-                fData.append('start',$('#startPos').val());
-                fData.append('end',$('#endPos').val());
-                fData.append('ass',$('#ass').val());
-                fData.append('lay',$('#centg').val());
-                fData.append('sim',$('#sim').val());
-                fData.append('shdep',$('#shDep').val());
-                fData.append('buFilt',$('#buFilt').val());
-                
-                var csrfToken = $("[name='csrfmiddlewaretoken']").val();
-                fData.append('csrfmiddlewaretoken',csrfToken);
-                
-                $.ajax({
-                    url: "/app/vrpg/move/",
-                    type: "POST",
-                    data: fData,
-                    contentType: false,
-                    processData: false,
-                
-                    beforeSend: function(){
-                        $('svg').html("")
-                    },
-                    
-                    success: function(data){
-                        graph(data);
+        function visAlign(data){
+            $('#seqAlign').html("");
+            if(data.qChr.length > 0){
+                if(data.qCigar.length > 0){
+                    let alnHtml = '<h5>Path information <button id="dwPh" class="btn btn-link">[Download]</button></h5><table class="table">';
+                    alnHtml += "<thead><tr><th>qChr</th><th>qStart</th><th>qEnd</th><th>qPath</th><th>qCigar</th></tr></thead><tbody>";
+                    for(let i = 0; i < data.qChr.length; i++){
+                        alnHtml += `<tr><td>${data.qChr[i]}</td><td>${data.qStart[i]+1}</td><td>${data.qEnd[i]+1}</td><td>${data.qPath[i]}</td><td>${data.qCigar[i]}</td></tr>`;
                     }
+                    alnHtml += "</tbody></table>";
+                    $('#seqAlign').html(alnHtml);
+                }else{
+                    let alnHtml = '<table class="table">';
+                    alnHtml += "<thead><tr><th>#qChr</th><th>qStart</th><th>qEnd</th><th>qPath</th></tr></thead><tbody>";
+                    for(let i = 0; i < data.qChr.length; i++){
+                        alnHtml += `<tr><td>${data.qChr[i]}</td><td>${data.qStart[i]+1}</td><td>${data.qEnd[i]+1}</td><td>${data.qPath[i]}</td></tr>`;
+                    }
+                    alnHtml += "</tbody></table>";
+                    $('#seqAlign').html(alnHtml);
+                }
+                
+                $('#dwPh').click(function(){
+                    let txtPh = "";
+                    if(data.qCigar.length > 0){
+                        txtPh = "#qChr\tqStart\tqEnd\tqPath\tqCigar\n";
+                        for(let i = 0; i < data.qChr.length; i++){
+                            txtPh += `${data.qChr[i]}\t${data.qStart[i]+1}\t${data.qEnd[i]+1}\t${data.qPath[i]}\t${data.qCigar[i]}\n`;
+                        }
+                    }else{
+                        txtPh = "#qChr\tqStart\tqEnd\tqPath\n";
+                        for(let i = 0; i < data.qChr.length; i++){
+                            txtPh += `${data.qChr[i]}\t${data.qStart[i]+1}\t${data.qEnd[i]+1}\t${data.qPath[i]}\n`;
+                        }
+                    }
+                    let phBlob = new Blob([txtPh],{type:"text/plain;charset=utf-8"});
+                    saveAs(phBlob,"pathInformation.txt");
                 });
             }
-            
-            function chrOpt(chrList){
-                chrHtml = "";
-                for(let name of chrList){
-                    chrHtml += `<option value=${name}>${name}</option>`;
+        }
+        
+        function plotGraph(update){
+            var fData = new FormData();
+            let asmVec = [];
+            let asmNum = parseInt($('#asmCn').text());
+            for(let n = 0; n < asmNum; n++){
+                if($('#ht_' + String(n)).prop('checked')){
+                    asmVec.push($('#lab_' + String(n)).text());
                 }
-                $('#chrName').html(chrHtml);
             }
+            fData.append('species',$('#species').val());
+            fData.append('tchr',$('#chrName').val());
+            fData.append('start',$('#startPos').val());
+            fData.append('end',$('#endPos').val());
+            fData.append('asm',asmVec);
+            fData.append('lay',$('#centg').val());
+            fData.append('sim',$('#sim').val());
+            fData.append('shdep',$('#shDep').val());
+            fData.append('buFilt',$('#buFilt').val());
             
-            function assOpt(assList){
-                assHtml = "<option value='0'></option>";
-                for(let name of assList){
-                    assHtml += `<option value=${name}>${name}</option>`;
-                }
-                $('#ass').html(assHtml);
+            if($('#vSeqMap').is(':checked')){
+                fData.append('vseq','1');
+            }else{
+                fData.append('vseq','0');
             }
+            fData.append('taskID',$('#taskid').text());
             
-            function initGraph(){
-                $('#sim').val("mr");
-                $('#centg').val("sq");
-                $('#buFilt').val(50);
-                var fData = new FormData();
-                fData.append('species',$('#species').val());
-                var csrfToken = $("[name='csrfmiddlewaretoken']").val();
-                fData.append('csrfmiddlewaretoken',csrfToken);
-                fData.append('lay',$('#centg').val());
-                $.ajax({
-                    url: "/app/vrpg/init/",
-                    type: "POST",
-                    data: fData,
-                    contentType: false,
-                    processData: false,
+            var csrfToken = $("[name='csrfmiddlewaretoken']").val();
+            fData.append('csrfmiddlewaretoken',csrfToken);
+            
+            simulation.stop();
+            //
+            
+            document.getElementById("ntrack").innerHTML = "";
+            document.getElementById("ref").innerHTML = "";
+            document.getElementById("mgraph").innerHTML = "";
+
+            $.ajax({
+                url: "/app/vrpg/move/",
+                type: "POST",
+                data: fData,
+                contentType: false,
+                processData: false,
                 
-                    beforeSend: function(){
-                        $('svg').html("")
-                    },
-                    
-                    success: function(data){
-                        chrOpt(data.nameList);
-                        $('#startPos').val("1");
-                        $('#endPos').val(data.iniEnd)
-                        assOpt(data.ass);
-                        graph(data);
+                success: function(data){
+                    graph(data);
+                    if(update){
+                        visAlign(data);
                     }
-                });
+                }
+            });
+        }
+        
+        function chrOpt(chrList){
+            let chrHtml = "";
+            for(let name of chrList){
+                chrHtml += `<option value=${name}>${name}</option>`;
             }
+            $('#chrName').html(chrHtml);
+        }
+        
+        function asmOpt(asmList){
+            let asmHtml = "";
+            for(let n in asmList){
+                let tid = "ht_" + String(n);
+                let labID = "lab_" + String(n);
+                asmHtml += `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id=${tid}>
+                    <label class="form-check-label" for=${tid} id=${labID}>${asmList[n]}</label>
+                </div>
+                `;
+            }
+            $('#asm').html(asmHtml);
+            $('#asmCn').text(asmList.length);
+        }
+        
+        function initGraph(){
+            $('#sim').val("mr");
+            $('#centg').val("utex");
+            $('#buFilt').val(50);
+            var fData = new FormData();
+            fData.append('species',$('#species').val());
+            var csrfToken = $("[name='csrfmiddlewaretoken']").val();
+            fData.append('csrfmiddlewaretoken',csrfToken);
+            //fData.append('lay',$('#centg').val());
+            $.ajax({
+                url: "/app/vrpg/init/",
+                type: "POST",
+                data: fData,
+                contentType: false,
+                processData: false,
             
-            function checkValue(){
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
+                beforeSend: function(){
+                    $('svg').html("")
+                },
+                
+                success: function(data){
+                    chrOpt(data.nameList);
+                    asmOpt(data.asm);
+                    graph(data);
+                }
+            });
+        }
+        
+        function checkValue(){
+            var pat = /\s/;
+            var s_start = $('#startPos').val();
+            var s_end = $('#endPos').val();
+            if(pat.test(s_start) || pat.test(s_end)){
+                $('#Range').html('<p style="color:red">Error: Coordinate value should be an integer without any space.</p>');
+            }else{
+                var pstart = parseInt(s_start);
+                var pend = parseInt(s_end);
                 var dis = pend - pstart;
                 if(pend < pstart){
                     $('#Range').html('<p style="color:red">Error: the start coordinate must be smaller than the end coordinate.</p>');
                 }else{
-                    if(dis > 1000000){
-                        $('#Range').html('<p style="color:red">Warning: the genomic region to view is too large.</p>');
+                    if(dis > regionLimit){
+                        $('#Range').html('<p style="color:red">Warning: The genomic region to view should be <= ' + regionLimit + '.</p>');
                     }else{
                         $('#Range').html('');
                     }
                 }
             }
-            
-            $(function(){
-                initGraph();
-                $('[data-toggle="tooltip"]').tooltip();
+        }
+        //
+        $(function(){
+            initGraph();
+            $('[data-toggle="tooltip"]').tooltip();
+            //
+            $('#asmSel').click(function(){
+                $('#dmenu').slideToggle("fast");
             });
             
-            $('#stopAni').on("click",function(){
-                if(typeof d3cola != 'undefined'){
-                    d3cola.stop();
-                }
-                if(typeof simulation != 'undefined'){
-                    simulation.stop();
-                }
+            $('#ghMap').click(function(){
+                $('#inSeq').slideToggle("fast");
             });
-            
-            $('#sim').on("change",function(){
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
-                var dis = pend - pstart;
-                if(dis > 0 && dis <= 1000000){
-                    if(typeof d3cola != 'undefined'){
-                        d3cola.stop();
-                    }
-                    if(typeof simulation != 'undefined'){
-                        simulation.stop();
-                    }
-                    plotGraph();
+        });
+        //
+        $('#dmenu').click(function(){
+            let selNum = 0;
+            let asmNum = parseInt($('#asmCn').text());
+            for(let n = 0; n < asmNum; n++){
+                if($('#ht_' + String(n)).prop('checked')){
+                    selNum++;
                 }
-            });
-            
-            $('#go').on("click",function(){
-                if($('#startPos').val() == "" || $('#endPos').val() == "" || $('#shDep').val() == "" || $('#buFilt').val() == ""){
-                    $('#Range').html('<p style="color:red">Warning: Incorrect input value! This needs to be INTEGER only (without any flanking space).</p>');
-                }else{
-                    $('#Range').html('')
-                }
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
-                var dis = pend - pstart;
-                if(dis > 0 && dis <= 1000000){
-                    if(typeof d3cola != 'undefined'){
-                        d3cola.stop();
-                    }
-                    if(typeof simulation != 'undefined'){
-                        simulation.stop();
-                    }
-                    plotGraph();
-                }
-            });
-            
-            $('#ass').on("change",function(){
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
-                var dis = pend - pstart;
-                if(dis > 0 && dis <= 1000000){
-                    if(typeof d3cola != 'undefined'){
-                        d3cola.stop();
-                    }
-                    if(typeof simulation != 'undefined'){
-                        simulation.stop();
-                    }
-                    plotGraph();
-                }
-            });
-            
-            $('#centg').on("change",function(){
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
-                var dis = pend - pstart;
-                if(dis > 0 && dis <= 1000000){
-                    if(typeof d3cola != 'undefined'){
-                        d3cola.stop();
-                    }
-                    if(typeof simulation != 'undefined'){
-                        simulation.stop();
-                    }
-                    plotGraph();
-                }
-            });
-            
-            $('#species').on("change",function(){
-                if(typeof d3cola != 'undefined'){
-                    d3cola.stop();
-                }
-                if(typeof simulation != 'undefined'){
-                    simulation.stop();
-                }
-                $('#nodeInfo').html('<p style="color:gray; margin-top:290px">Click on the graph node in the left box to find more about its corresponding genomic segment.<p>')
-                initGraph();
-            });
-            
-            $('#startPos').on("change",function(){
-                checkValue();
-            });
-            
-            $('#endPos').on("change",function(){
-               checkValue();
-            });
-            
-            $('#mleft').on("click",function(){
-                if(typeof d3cola != 'undefined'){
-                    d3cola.stop();
-                }
-                if(typeof simulation != 'undefined'){
-                    simulation.stop();
-                }
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
-                var dis = pend - pstart;
-                if(dis > 0 && dis <= 1000000){
-                    var tstart = pstart - 500 > 0 ? pstart - 500 : 1;
-                    var tend = pend - 500 < 500 ? 500 : pend - 500;
-                    
-                    $('#startPos').val(tstart.toString());
-                    $('#endPos').val(tend.toString());
-                    plotGraph();
-                }
-            });
-            
-            $('#mright').on("click",function(){
-                if(typeof d3cola != 'undefined'){
-                    d3cola.stop();
-                }
-                if(typeof simulation != 'undefined'){
-                    simulation.stop();
-                }
-                var pstart = parseInt($('#startPos').val());
-                var pend = parseInt($('#endPos').val());
-                
-                var dis = pend - pstart;
-                if(dis > 0 && dis <= 1000000){
-                    var tstart = pstart + 500;
-                    var tend = pend + 500;
-
-                    $('#startPos').val(tstart.toString());
-                    $('#endPos').val(tend.toString());
-                    plotGraph();
-                }
-            });
-            
-            function saveIm(){
-                var html1 = d3.select("#ref")
-                         .node().innerHTML;
-                    html1 = html1.replace(/<g transform=\"translate\(.+?\)/,'<g transform="');
-                         
-                var html2 = d3.select("#mgraph")
-                         .node().innerHTML;
-                    html2 = html2.replace(/<g transform=\"translate\(.+?\)/,'<g transform="');
-                         
-                var html = `<svg version="1.1" xmlns="http://www.w3.org/2000/svg">` + html1 + html2 + "</svg>";
-                var blob = new Blob([html],{type:"image/svg+xml"});
-                saveAs(blob,"panGraph.svg");
+                $("#asmSel").text(`${selNum} selected`);
             }
+        });
+
+        $('#stopAni').on("click",function(){
+            if(typeof simulation != 'undefined'){
+                simulation.stop();
+            }
+        });
+        
+        $('#sim').on("change",function(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                if(typeof simulation != 'undefined'){
+                    simulation.stop();
+                }
+                plotGraph(true);
+            }
+        });
+        
+        $('#go').on("click",function(){
+            if($('#startPos').val() == "" || $('#endPos').val() == "" || $('#shDep').val() == "" || $('#buFilt').val() == ""){
+                $('#Range').html('<p style="color:red">Warning: Incorrect input value! This needs to be INTEGER only (without any flanking space).</p>');
+            }else{
+                $('#Range').html('')
+            }
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                if(typeof simulation != 'undefined'){
+                    simulation.stop();
+                }
+                plotGraph(true);
+            }else{
+                $('#Range').html('<p style="color:red">Warning: The genomic region to view should be <= ' + regionLimit + '.</p>');
+            }
+        });
+        
+        
+        $('#centg').on("change",function(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                if(typeof simulation != 'undefined'){
+                    simulation.stop();
+                }
+                plotGraph(false);
+            }
+        });
+        
+        $('#nodeType').on("change",function(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                if(typeof simulation != 'undefined'){
+                    simulation.stop();
+                }
+                plotGraph(false);
+            }
+        });
+        $('#edgeType').on("change",function(){
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                if(typeof simulation != 'undefined'){
+                    simulation.stop();
+                }
+                plotGraph(false);
+            }
+        });
+        
+        $('#species').on("change",function(){
+            if(typeof simulation != 'undefined'){
+                simulation.stop();
+            }
+            $('#nodeInfo').html('<p style="color:gray; margin-top:290px">Click on the graph node in the left box to find more about its corresponding genomic segment.<p>')
+            $('#seqAlign').html("");
+            $('#startPos').val("1");
+            $('#endPos').val("10000");
             
-            $('#savePlot').on('click',function(){
-                saveIm();
-            })
+            $('#asmSel').text("None selected");
+            
+            initGraph();
+        });
+        
+        $('#startPos').on("change",function(){
+            checkValue();
+        });
+        
+        $('#endPos').on("change",function(){
+           checkValue();
+        });
+        
+        $('#mleft').on("click",function(){
+
+            if(typeof simulation != 'undefined'){
+                simulation.stop();
+            }
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                var tstart = pstart - 500 > 0 ? pstart - 500 : 1;
+                var tend = pend - 500 < 500 ? 500 : pend - 500;
+                
+                $('#startPos').val(tstart.toString());
+                $('#endPos').val(tend.toString());
+                plotGraph(true);
+            }
+        });
+        
+        $('#mright').on("click",function(){
+            if(typeof simulation != 'undefined'){
+                simulation.stop();
+            }
+            var pstart = parseInt($('#startPos').val());
+            var pend = parseInt($('#endPos').val());
+            
+            var dis = pend - pstart;
+            if(dis > 0 && dis <= regionLimit){
+                var tstart = pstart + 500;
+                var tend = pend + 500;
+
+                $('#startPos').val(tstart.toString());
+                $('#endPos').val(tend.toString());
+                plotGraph(true);
+            }
+        });
+        
+        function saveIm(){
+            var html1 = d3.select("#ref")
+                         .node().innerHTML;
+            
+            var html2 = d3.select("#mgraph")
+                         .node().innerHTML;
+            
+            var html3 = d3.select("#ntrack")
+                         .node().innerHTML;
+            var html = '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0,0,1000,1000">' + html2 + '<g transform="translate(0,500)">' + html1 + '</g><g transform="translate(0,700)">' + html3 + "</g></svg>";             
+            var blob = new Blob([html],{type:"image/svg+xml"});
+            saveAs(blob,"panGraph.svg");
+        }
+        
+        $('#savePlot').on('click',function(){
+            saveIm();
+        })
+        
+        $('#dnaSeq').on('change',function(){
+            let subSeq = $('#dnaSeq').val();
+            if(subSeq.length == 0){
+                $('#seqCheck').html("Warning: Exmpty input!");
+            }else if(! subSeq.startsWith('>')){
+                $('#seqCheck').html("Warning: Input sequence is not in FASTA format!");
+            }else if(subSeq.length > 1000000){
+                $('#seqCheck').html("Warning: Sequence length (including header and line breaks) should be <= 1000000.");
+            }else{
+                $('#seqCheck').html("");
+            }
+        })
+        
+        $('#runMap').click(function(){
+            $('#progress').css("display","");
+            var fData = new FormData();
+            let subSeq = $('#dnaSeq').val();
+            if(subSeq.length == 0){
+                $('#seqCheck').html("Warning: Exmpty input!");
+            }else if(! subSeq.startsWith('>')){
+                $('#seqCheck').html("Warning: Input sequence is not in FASTA format!");
+            }else if(subSeq.length > 1000000){
+                $('#seqCheck').html("Warning: Input sequence is too long! The length should be <= 1000000.");
+            }else{
+                $('#seqCheck').html("");
+                fData.append('qSeq',subSeq);
+                fData.append('species',$('#species').val());
+                $.ajax({
+                    url: "/app/vrpg/seq2map/",
+                    type: "POST",
+                    data: fData,
+                    contentType: false,
+                    processData: false,
+                    success: function(data){
+                        if(data.tkNum < 0){
+                            $('#seqCheck').html("The original pangenome in GFA format is not supported for sequence alignment by the current version of vrpg.")
+                        }else if(data.tkNum > 2){
+                            $('#seqCheck').html("The task queue is full. Please try later again.")
+                        }else{
+                            $('#seqCheck').html("")
+                            
+                            $('#taskid').text(data.taskID);
+                            var mRegin = "";
+                            for(let k of data.locInfo){
+                                mRegin += `<tr><td>${k[0]}</td><td>${k[1]}</td><td>${k[2]}</td></tr>`;
+                            }
+                            $('#pRegion').html(mRegin);
+                            $('#progress').css("display","none");
+                        }
+                    }
+                });
+            }
+        });
             
         </script>
 
