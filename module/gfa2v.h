@@ -68,23 +68,23 @@ inline void markSign(char mark,bool flip1,bool flip2,char &sign1,char &sign2){
 int readGFA(std::string &tmpFolder,igzstream &in,std::string &refStr,std::string &sep,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,std::ofstream &afh,std::ofstream &acfh);
 
 int psRchrWalk(std::string &refPath,std::string &fullName,int refStart,std::unordered_map<int,int> &mNodeLen,int &neoID,std::unordered_set<int> &refNodeSet,
-               std::unordered_set<int> &flipSet,std::unordered_map<int,int> &rCovMap,std::ofstream &nfh,std::ofstream &efh,std::ofstream &pfh);
+               std::unordered_set<int> &flipSet,std::unordered_map<int,int> &rCovMap,std::ofstream &nfh,std::ofstream &efh,std::ofstream &pfh,ofstream &ddfh);
                
-void psNWalk(std::string &nrPath,std::string &ass,int walkStart,std::unordered_set<int> &flipSet,std::unordered_map<int,int> &tmap,std::unordered_map<int,int> &mNodeLen,std::unordered_set<int> &noutNode,std::ofstream &pfh,std::ofstream &nfh);
+void psNWalk(std::string &nrPath,std::string &asmb,int walkStart,std::unordered_set<int> &flipSet,std::unordered_map<int,int> &tmap,std::unordered_map<int,int> &mNodeLen,std::unordered_set<int> &noutNode,std::ofstream &pfh,std::ofstream &nfh);
 
 //
 
 int psRchrPath(std::string &refPath,std::string &fullName,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,int &neoID,std::unordered_set<int> &refNodeSet,
-               std::unordered_set<int> &flipSet,std::set<NEdge> &rEset,std::set<NEdge> &rJset,std::map<NEdge,Jnode> &jNeoMap,std::unordered_map<int,int> &rCovMap,std::ofstream &nfh,std::ofstream &efh,std::ofstream &pfh
+               std::unordered_set<int> &flipSet,std::set<NEdge> &rEset,std::set<NEdge> &rJset,std::map<NEdge,Jnode> &jNeoMap,std::unordered_map<int,int> &rCovMap,std::ofstream &nfh,std::ofstream &efh,std::ofstream &pfh,ofstream &ddfh
                 );
                 
-void psNPath(std::string &nrPath,std::string &ass,std::unordered_set<int> &flipSet,std::map<NEdge,Jnode> &jNeoMap,std::unordered_map<int,int> &tmap,std::unordered_map<int,int> &mNodeLen,std::unordered_set<int> &noutSet,std::ofstream &pfh,std::ofstream &nfh);
+void psNPath(std::string &nrPath,std::string &asmb,std::unordered_set<int> &flipSet,std::map<NEdge,Jnode> &jNeoMap,std::unordered_map<int,int> &tmap,std::unordered_map<int,int> &mNodeLen,std::unordered_set<int> &noutSet,std::ofstream &pfh,std::ofstream &nfh);
 
-void psAllPath(std::string &tmpFolder,std::string &assFile,std::string &sepStr,int &neoID,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,
-                std::ofstream &nfh,std::ofstream &efh,std::ofstream &covfh,std::ofstream &xcovfh,std::ofstream &cfh,std::string &pathDir
+void psAllPath(bool ncalCov,std::string &tmpFolder,std::string &asmFile,std::string &sepStr,int &neoID,std::unordered_map<int,int> &mNodeLen,std::map<NEdge,int> &edgeMap,std::map<NEdge,int> &jumpMap,
+                std::ofstream &nfh,std::ofstream &efh,std::ofstream &covfh,std::ofstream &xcovfh,std::ofstream &cfh,std::string &pathDir,std::string &flipFile
                );
-               
-void gfa2view(char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,int ex,bool index,int nocross,int nthread,int storeDep,char *outDir);
+
+void gfa2view(bool ncalCov,char *rfChrFile,char *gfaFile,char *refName,char *sep,int range,int ex,bool index,int nocross,int nthread,int storeDep,char *outDir);
 void g2v_usage();
 
 

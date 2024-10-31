@@ -8,8 +8,11 @@ LIBS = -lz
 
 OBJ1 = gfa2view.o minipg.o gz.o
 OBJ2 = anno.o refgene.o ghAnno.o gz.o
+OBJ2 = anno.o refgene.o refbed.o ghAnno.o gz.o 
+OBJ3 = gaf2rbed.o
+OBJ4 = nodeSeq.o
 
-all : gfa2view GraphAnno $(PYSO)
+all : gfa2view GraphAnno gaf2rbed nodeSeq $(PYSO)
 
 gfa2view : $(OBJ1)
 	$(CXX) $(CXXFLAG) $(OBJ1) -o $@ $(LIBS)
@@ -17,6 +20,12 @@ gfa2view : $(OBJ1)
 GraphAnno : $(OBJ2)
 	$(CXX) $(CXXFLAG) $(OBJ2) -o $@ $(LIBS)
 
+gaf2rbed : $(OBJ3)
+	$(CXX) $(CXXFLAG) $(OBJ3) -o $@
+
+nodeSeq : $(OBJ4)
+	$(CXX) $(CXXFLAG) $(OBJ4) -o $@
+    
 %.o : %.cpp
 	$(CXX) $(CXXFLAG) -c $< -o $@ $(LIBS)
 

@@ -1,5 +1,6 @@
 
 #include <vector>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <cstring>
@@ -24,13 +25,27 @@ typedef struct{
 } AnnoDx;
 
 typedef struct{
-    int node;
-    int reStart;
-    int len;
+    int node1;
+    int node2;
+    int reStart1;
+    int reStart2;
     char name[FIELDSIZE];
     uint8_t layer;
     char strand;
-} NodeGene;
+    char type;
+    uint8_t num;
+} GeneNode;
+
+typedef struct{
+    int node1;
+    int node2;
+    int reStart1;
+    int reStart2;
+    char name[FIELDSIZE];
+    uint16_t layer;
+    char strand;
+    float score;
+} BedNode;
 
 typedef struct{
     float start;
@@ -40,7 +55,29 @@ typedef struct{
     char margin;
 } FigGene;
 
-inline void assSplit(const std::string &r_chr, const std::string &sep,std::string &tName,std::string &t_hap,std::string &tchr){
+typedef struct{
+    float start;
+    float end;
+    float score;
+    //int layer;
+    char strand;
+    std::string name;
+} FigBed;
+
+typedef struct{
+    float start;
+    float end;
+    int layer;
+    char strand;
+    uint8_t num; 
+} FigEle;
+
+typedef struct{
+    long long offset;
+    int len;
+} SeqDx;
+
+inline void asmSplit(const std::string &r_chr, const std::string &sep,std::string &tName,std::string &t_hap,std::string &tchr){
     auto t_pos = r_chr.find(sep);
     if(t_pos != std::string::npos){
         tName = r_chr.substr(0,t_pos);
@@ -120,6 +157,7 @@ struct LEdge{
         }
         return false;
     }
+
 };
 
 typedef struct LEdge NEdge;
@@ -158,8 +196,8 @@ typedef struct{
 
 typedef struct{
     int len;
-    int ass;
-} LenAss;
+    int asmb;
+} LenAsm;
 
 struct INode{
     int node;
@@ -192,9 +230,12 @@ typedef struct{
 
 struct PaRa{
     int frag;
+    int pathNum;
     int firNode;
     char firOri;
     std::list<LagNode> lag;
+    std::list<int> posList;
+    std::list<std::string> cigarList;
     bool operator < (const PaRa &pr)const{
         return frag < pr.frag;
     }
@@ -227,38 +268,107 @@ public:
     std::vector<int> hnGroup;
     std::vector<std::string> hLinks;
     std::vector<char> hDir;
+    std::vector<int> hEdgeAsm;
     
+    //annotation gene
     std::vector<float> ndGenePos;
     std::vector<std::string> geneVec;
     std::vector<int> layerVec;
     std::vector<char> strandVec;
     std::vector<char> mgFlagVec;
     
-    void formatGraph(std::string &ass,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim);
+    //annotation exon
+    std::vector<float> ndExonPos;
+    std::vector<std::string> rnaVec;
+    std::vector<int> eLayerVec;
+    std::vector<char> eStrandVec;
+    std::vector<char> eFlagVec;
+    std::vector<int> eNumVec;
+    
+    //annotation cds
+    std::vector<float> ndCDSPos;
+    std::vector<std::string> cdsVec;
+    std::vector<int> cLayerVec;
+    std::vector<int> cNumVec;
+    
+    //annotation track in bed format
+    std::vector<std::string> tkNameVec;
+    std::vector<std::string> tkDesVec;
+    std::vector<int> tkColVec;
+    std::vector<int> tkCumVec;
+    std::vector<int> tkItem;
+    std::vector<float> rBedPos;
+    std::vector<std::string> rBedName;
+    std::vector<int> rBedLayer;
+    std::vector<float> rBedScore;
+    std::vector<char> rBedStrand;
+    
+    std::vector<int> tickValue;
+    std::vector<float> tickPos;
+    
+    float figScale;
+    
+    //alignment
+    std::vector<std::string> qChr;
+    std::vector<int> qStart;
+    std::vector<int> qEnd;
+    std::vector<std::string> qPath;
+    std::vector<std::string> qCigar;
+    
+    void formatGraph(std::string &asmb,std::string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim);
     void edgeWrite(std::string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep);
     
 private:
-    std::string nodeFile,edgeFile,pathDir,assFile,chrFile,comChrFile,sepFile;
+    std::string nodeFile,edgeFile,pathDir,asmFile,chrFile,comChrFile,sepFile;
     std::string upDir;
     std::string sep;
     
     int indexFlag;
+    // 
     void conformEdge(NodeType &node1,NodeType &node2,char mark,std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge);
+    //---------- read unindexed dada -------------------
     void parseEdge(std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge);
-    void parseNode(std::string &sChr,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_set<NodeType> &exNode,std::unordered_map<NodeType,LenAss> &info,int &realLen);
-    void hAssNode(std::string &ass,int assNum,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);
+    void parseNode(std::string &sChr,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_map<NodeType,char> &exNode,std::unordered_map<NodeType,LenAsm> &info,int &realLen);
     //
-    void eAssFind(std::vector<char> &orient,std::vector<NodeType> &nodes,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict,std::unordered_set<int> &ndGroup);
-    //
-    void parseIndex(int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge);
-    int getChrNum(std::string &sChr);
-    int getAssNum(std::string &ass);
-    void getExNode(int chrNum,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_set<NodeType> &exNode,std::unordered_map<NodeType,LenAss> &info,int &realLen);
-    void queryDbPath(int assNum,int chrNum,int sStart,int sEnd,std::vector<std::vector<char> > &oriMulti,std::vector<std::vector<int> > &nodeMulti);
-    void dxAssNode(int assNum,int chrNum,int sStart,int sEnd,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);
+    void hAsmNode(std::string &taskDir,bool refSim,std::unordered_map<NodeType,LenAsm> &info,int asmNum,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);
+    void hEdge2fig(std::unordered_map<NodeType,Nid> &nid_dict,std::map<NEdge,int> &h_edge_dict,std::map<NEdge,int> &r_edge_dict);
+    void hAsmNode2(bool refSim,std::vector<int> &asmNumVec,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);
     
-    //
+    //---------- for sequence alignment -------------------
+    bool f_cigar2pos(int qStart,int rStart,std::unordered_map<NodeType,LenAsm> &info,std::string &cigar,std::vector<int> &nodes,std::vector<std::string> &qCigarVec,std::vector<int> &qPosVec);
+    bool f_path2pos(int rStart,std::unordered_map<NodeType,LenAsm> &info,std::vector<int> &nodes,std::vector<int> &qPosVec);
+    
+    //---------- intermediate functions used by functions to deal with both indexed and unindexed data -------------------
+    std::string subCigar(std::string &rgCigar,int ndStart,int ndEnd);
+    /*  
+        Highlight assembly path:
+        visCigar is true.
+            
+        Highlight query path (sequence alignment):
+        visCigar is true if all nodes that composing the query sequence are in the indexed graph, 
+        or visCigar is false.
+    */
+    void eAsmFind(bool visCigar,bool refSim,std::vector<char> &orient,std::vector<NodeType> &nodes,std::vector<int> &qPosVec,std::string &rgCigar,std::string &rgName,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict,std::unordered_set<int> &ndGroup);
+    void eAsmFind2(bool refSim,int asmCode,std::vector<char> &orient,std::vector<NodeType> &nodes,std::unordered_map<NodeType,Nid> &nid_dict,std::unordered_set<int> &ndGroup,std::map<NEdge,int> &h_edge_dict);
+    int getChrNum(std::string &sChr);
+    int getAsmNum(std::string &asmb);
+    // get code number for a list of assemblies
+    void getAsmNum2(std::set<std::string> &nameSet,std::vector<int> &asmNumVec);
+    
+    //---------- read indexed data -------------------    
+    // read indexed edge data
+    void parseIndex(int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge);    
+    // read indexed node data
+    void getExNode(int chrNum,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_map<NodeType,char> &exNode,std::unordered_map<NodeType,LenAsm> &info,int &realLen,int &realStart);
+    // read index path dada
+    void queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::vector<std::vector<char> > &oriMulti,std::vector<std::vector<int> > &nodeMulti,std::vector<std::vector<int> > &qPosMulti,std::vector<std::string> &cigarMulti,std::vector<std::string> &nameMulti);    
+    
+    void dxAsmNode(bool refSim,int asmNum,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);    
+    void dxAsmNode2(bool refSim,std::vector<int> &asmVec,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);
+    
+    //---------- create indexes for node, edge and path data -------------------
     void splitRange(int rangeNum,std::unordered_map<std::string,int> &chrMap,std::unordered_map<std::string,int> &refChrMap,std::string &rndDxFile,std::string &rndFile,std::string &nspecFile,std::string &snFile);
+    //
     void getNrefEdge(std::string &rndFile,std::string &nspecFile,std::vector<NEdge> &resEdge);
     void getChrRmEdge(std::unordered_set<int> &ntNode,std::vector<NEdge> &chrRmEdge);
     
@@ -268,36 +378,45 @@ private:
     void oneTask(std::unordered_map<NodeType,std::vector<ENode> > &iedge,std::unordered_map<NodeType,std::vector<ENode> > &oedge,std::vector<RNode> &chrRnode,std::vector<OneRange> &acrVec,std::vector<NEdge> &chrRmEdge,
              int ex,int nocross,int frStart,int frEnd,int storeDep,std::ofstream &tndfh,std::ofstream &tbfh,int *frNrefNum,int *frEdgeNum
     );
-    
-    void pthTask(std::unordered_map<NodeType,std::vector<int> > &ndCutMap,std::vector<RanPos> &allpos,char *header,int dxByte,int frStart,int frEnd,std::vector<std::ifstream> &pthVec,std::vector<std::ofstream> &xpthVec,std::vector<std::ofstream> &wpthVec);
-    
-    void fillNode(std::string &comChrFile,std::string &ndAssLFile,std::string &nrNodeFile,std::string &nrNumFile,std::string &snFile,std::string &nrdFile);
-    void mergeDx(std::string &rndDxFile,std::string &nrNumFile,std::string &mgDxFile);
-    void rangePath(std::vector<char> &orient,std::vector<NodeType> &nodes,std::unordered_map<NodeType,std::vector<int> > &ndCutMap,std::list<PathRang> &allPaRa);
-    
-    void indexPath(std::string &assFile,std::string &eIndexFile,std::string &bEdgeFile,int nthread);
     //
-    void readRefGene(std::string &ovFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,std::unordered_set<NodeType> &retainID,std::vector<NodeGene> &refNodeGene);
-    void getFigGene(std::string &bwGeneFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,int lastLen,float wPerK);
+    void fillNode(std::string &comChrFile,std::string &ndAsmLFile,std::string &nrNodeFile,std::string &nrNumFile,std::string &snFile,std::string &nrdFile);
+    void mergeDx(std::string &rndDxFile,std::string &nrNumFile,std::string &mgDxFile);
+    //
+    void pthTask(bool formR,std::vector<int> &allLen,std::unordered_map<NodeType,std::vector<int> > &ndCutMap,std::vector<RanPos> &allpos,char *header,int dxByte,int frStart,int frEnd,std::vector<std::ifstream> &pthVec,std::vector<std::ofstream> &xpthVec,std::vector<std::ofstream> &wpthVec);
+    void rangePath(bool formR,int num,std::vector<std::string> &qCigarVec,std::vector<int> &qPosVec,std::vector<char> &orient,std::vector<NodeType> &nodes,std::unordered_map<NodeType,std::vector<int> > &ndCutMap,std::list<PathRang> &allPaRa);
+    void indexPath(bool formR,std::string &asmFile,std::string &eIndexFile,std::string &bEdgeFile,std::string &snFile,int nthread);
+    
+    void getAllLen(std::string &snFile,std::vector<int> &allLen);
+    void cigar2pos(int qStart,int rStart,std::vector<int> &allLen,std::string &cigar,std::vector<int> &nodes,std::vector<std::string> &qCigarVec,std::vector<int> &qPosVec);
+    void path2pos(int rStart,std::vector<int> &allLen,std::vector<int> &nodes,std::vector<int> &qPosVec);
+    //---------- read indexed annotation data -------------------
+    void readRefGene(std::string &ovFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,std::unordered_set<NodeType> &retainID,std::unordered_map<NodeType,char> &exNode,std::vector<GeneNode> &refNodeGene,std::unordered_set<std::string> midExon);
+    void getFigGene(std::string &bwGeneFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK,std::unordered_map<NodeType,char> &exNode);
+    
+    void readRefBed(std::string &ovFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,std::unordered_set<NodeType> &retainID,std::unordered_map<NodeType,char> &exNode,std::vector<BedNode> &refBedNode);
+    void getFigBed(std::string &tkDesFile,std::string &bwGeneFile,std::string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK,std::unordered_map<NodeType,char> &exNode);
 };
 
-
+//
 class QueryNode{
 
 public:
     QueryNode(std::string &t_dbDir);
     std::vector<int> ndCov;
-    std::string nodeAss,nodeChr;
+    std::string nodeAsm,nodeChr;
     int nodeStart,nodeEnd;
     std::vector<std::vector<std::string> > geneList;
     
+    std::string nodeSeq;
+    
+    void fetchNdSeq(int node);
     void queryDbNode(int node);
     void queryDbCov(int node);
-    void queryGene(int node,std::string &nodeAss);
-    void queryAssCov(std::vector<int> &nodeVec,std::string &ass);
+    void queryGene(int node,std::string &nodeAsm);
+    void queryAsmCov(std::vector<int> &nodeVec,std::string &asmb);
 private:
     int node;
-    std::string dbDir,comChrFile,assFile,sepFile,sep;
+    std::string dbDir,comChrFile,asmFile,sepFile,sep;
     std::vector<std::string> header;
     void getHeader();
     int countHeader();

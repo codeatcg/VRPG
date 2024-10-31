@@ -8,6 +8,7 @@
 #include <thread>
 #include <unistd.h>
 #include <algorithm>
+#include <cmath>
 
 #ifdef PYMODULE
 #include <pybind11/pybind11.h>
@@ -37,7 +38,7 @@ string getSep(string &sepFile){
 
 GraphRange::GraphRange(string &t_upDir,int index):upDir(t_upDir),indexFlag(index){
     
-    assFile = upDir + "/ass.list";
+    asmFile = upDir + "/asm.list";
     chrFile = upDir + "/chr.list";
     comChrFile = upDir + "/complete.chr.list";
     sepFile = upDir + "/sep.info";
@@ -84,6 +85,7 @@ void GraphRange::parseEdge(unordered_map<NodeType,vector<ENode> > &iedge,unorder
     if(! in){
         cerr<<"Error: file open failed. "<<edgeFile<<endl;
         return;
+        //exit(1);
     }
     string strLine;
     getline(in,strLine);
@@ -106,37 +108,39 @@ void GraphRange::parseEdge(unordered_map<NodeType,vector<ENode> > &iedge,unorder
     in.close();
 }
 //
-void GraphRange::parseNode(string &sChr,int sStart,int sEnd,int ex,vector<NodeType> &rangeNode,unordered_set<NodeType> &exNode,unordered_map<NodeType,LenAss> &info,int &realLen){
+void GraphRange::parseNode(string &sChr,int sStart,int sEnd,int ex,vector<NodeType> &rangeNode,unordered_map<NodeType,char> &exNode,unordered_map<NodeType,LenAsm> &info,int &realLen){
     int eStart = sStart - ex > 0 ? sStart - ex : 1;
     int eEnd = sEnd + ex;
     
-    string nodeLine,assLine;
+    string nodeLine,asmLine;
     stringstream strStream;
-    unordered_map<string,int> assMap;
+    unordered_map<string,int> asmMap;
     
-    ifstream afh(assFile.c_str());
+    ifstream afh(asmFile.c_str());
     if(! afh){
-        cerr<<"Error: file open failed. "<<assFile<<endl;
+        cerr<<"Error: file open failed. "<<asmFile<<endl;
         return;
+        //exit(1);
     }
     int pos = 0;
-    while(getline(afh,assLine)){
-        assMap.emplace(assLine,pos);
+    while(getline(afh,asmLine)){
+        asmMap.emplace(asmLine,pos);
         ++pos;
     }
     afh.close();
     //
-    string jAss = "Jump" + sep + "H";
-    string uAss = "Un" + sep + "H";
-    assMap.emplace(jAss,pos);
+    string jAsm = "Jump" + sep + "H";
+    string uAsm = "Un" + sep + "H";
+    asmMap.emplace(jAsm,pos);
     ++pos;
-    assMap.emplace(uAss,pos);
+    asmMap.emplace(uAsm,pos);
     //
     
     ifstream in(nodeFile.c_str());
     if(! in){
         cerr<<"Error: file open failed. "<<nodeFile<<endl;
         return;
+        //exit(1);
     }
     
     getline(in,nodeLine);
@@ -153,37 +157,50 @@ void GraphRange::parseNode(string &sChr,int sStart,int sEnd,int ex,vector<NodeTy
         strStream >> r_ref;
         
         string tName = "",t_hap = "",tchr = "";
-        assSplit(r_chr,sep,tName,t_hap,tchr);
-        string assStr = tName + sep + t_hap;
-        int ass = assMap[assStr];
+        asmSplit(r_chr,sep,tName,t_hap,tchr);
+        string asmStr = tName + sep + t_hap;
+        int asmb = asmMap[asmStr];
         if(r_ref == 0){
             if(tchr == sChr){
                 if(r_start <= eStart){
                     if(r_end >= eStart){
-                        exNode.insert(r_node);
-                        LenAss tx = {r_len,ass};
+                        //exNode.insert(r_node);
+                        LenAsm tx = {r_len,asmb};
                         info.emplace(r_node,tx);
-                        //
+                        //asmDict.emplace(r_node,tName);
                         if(r_end >= sStart){
                             rangeNode.push_back(r_node);
                             realLen += r_len;
+                            //
+                            exNode.emplace(r_node,'0');
+                        }else{
+                            exNode.emplace(r_node,'2');
                         }
                     }
                 }else{
                     if(r_start <= eEnd){
-                        exNode.insert(r_node);
-                        //
-                        LenAss tx = {r_len,ass};
+                        //exNode.insert(r_node);
+                        //info.emplace(r_node,r_len);
+                        //asmDict.emplace(r_node,tName);
+                        LenAsm tx = {r_len,asmb};
                         info.emplace(r_node,tx);
                         if(r_start <= sStart){
                             if(r_end >= sStart){
                                 rangeNode.push_back(r_node);
                                 realLen += r_len;
+                                //
+                                exNode.emplace(r_node,'0');
+                            }else{
+                                exNode.emplace(r_node,'2');
                             }
                         }else{
                             if(r_start <= sEnd){
                                 rangeNode.push_back(r_node);
                                 realLen += r_len;
+                                //
+                                exNode.emplace(r_node,'0');
+                            }else{
+                                exNode.emplace(r_node,'1');
                             }
                         }
                         
@@ -191,8 +208,8 @@ void GraphRange::parseNode(string &sChr,int sStart,int sEnd,int ex,vector<NodeTy
                 }
             }
         }else{
-            LenAss tx = {r_len,ass};
-            info.emplace(r_node,tx);            
+            LenAsm tx = {r_len,asmb};
+            info.emplace(r_node,tx);
         }
         
         strStream.clear();
@@ -202,12 +219,186 @@ void GraphRange::parseNode(string &sChr,int sStart,int sEnd,int ex,vector<NodeTy
     in.close();
 }
 
-void GraphRange::eAssFind(vector<char> &orient,vector<NodeType> &nodes,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict,unordered_set<int> &ndGroup){
+// [posStart,posEnd)
+string GraphRange::subCigar(string &rgCigar,int ndStart,int ndEnd){
+    int n = rgCigar.size();
+    int posStart = 0, posEnd = 0;
+    int count = 0;
+    string outStr = "";
+    for(int i = 0; i < n; ++i){
+        if(rgCigar[i] == '>' || rgCigar[i] == '<'){
+            if(ndStart == count){
+                posStart = i;
+            }else if(ndEnd == count){
+                posEnd = i;
+                break;
+            }            
+            ++count;
+        }
+    }
+    //
+    if(posEnd == 0){
+        outStr = rgCigar.substr(posStart);
+    }else{
+        outStr = rgCigar.substr(posStart,posEnd-posStart);
+    }
+    return outStr;
+}    
+
+/*
+    When option 'Simplify all nodes' is taken new edges that link two reference nodes may be created.
+    Variable 'tIn' is used to record the status of all nodes.
+*/
+void GraphRange::eAsmFind(bool visCigar,bool refSim,vector<char> &orient,vector<NodeType> &nodes,vector<int> &qPosVec,string &rgCigar,string &rgName,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict,unordered_set<int> &ndGroup){
+    char preOri = '\0';
+    int preIn = 0;
+    NodeType preNode = 0;
+    int tIn = 0;
+    //
+    int ndStart = -1, ndEnd = 0;
+    string tpath = "";
+    
+    for(size_t j = 0; j < orient.size(); ++j){
+        //if(refSkip.find(nodes[j]) != refSkip.end()){
+        //    continue;
+        //}
+        if(nid_dict.find(nodes[j]) != nid_dict.end()){
+            if(ndGroup.find(nodes[j]) == ndGroup.end()){
+                hnGroup.push_back(nid_dict[nodes[j]].gNum);
+                ndGroup.insert(nodes[j]);
+            }
+            if(preIn > 0){
+                char mark = getMark(preOri,orient[j],'>');
+                NEdge sym = {preNode,nodes[j],mark};               
+                if(r_edge_dict.find(sym) != r_edge_dict.end()){                   
+                    //if(edGroup.find(sym) == edGroup.end()){
+                        hDir.push_back('1');
+                        //
+                        if(mark == '2'){
+                            if(r_edge_dict[sym] == 0){
+                                mark = '1';
+                            }
+                        }                       
+                        switch(mark){
+                            case '1':
+                                hLinks.push_back(to_string(nid_dict[preNode].e_nid) + "_" + to_string(nid_dict[nodes[j]].s_nid) + "_" + string(1,mark));                          
+                                break;
+                            case '2':
+                                hLinks.push_back(to_string(nid_dict[preNode].e_nid) + "_" + to_string(nid_dict[nodes[j]].s_nid) + "_" + string(1,mark));
+                                break;
+                            case '3':
+                                hLinks.push_back(to_string(nid_dict[preNode].e_nid) + "_" + to_string(nid_dict[nodes[j]].e_nid) + "_" + string(1,mark));
+                                break;
+                            case '4':
+                                hLinks.push_back(to_string(nid_dict[preNode].s_nid) + "_" + to_string(nid_dict[nodes[j]].s_nid) + "_" + string(1,mark));
+                                break;
+                            default:
+                                hLinks.push_back(to_string(nid_dict[preNode].s_nid) + "_" + to_string(nid_dict[nodes[j]].e_nid) + "_" + string(1,mark));
+                        }
+                        //
+                        //edGroup.insert(sym);
+                    //}
+                }else{
+                    char rmark = revMark(mark);
+                    NEdge sym = {nodes[j],preNode,rmark};
+                    
+                    if(r_edge_dict.find(sym) != r_edge_dict.end()){
+                        //if(edGroup.find(sym) == edGroup.end()){
+                            hDir.push_back('0');
+                            //
+                            if(rmark == '2'){
+                                if(r_edge_dict[sym] == 0){
+                                    rmark = '1';   
+                                }
+                            }
+                            switch(rmark){
+                                case '1':
+                                    hLinks.push_back(to_string(nid_dict[nodes[j]].e_nid) + "_" + to_string(nid_dict[preNode].s_nid) + "_" + string(1,rmark));
+                                    break;
+                                case '2':
+                                    hLinks.push_back(to_string(nid_dict[nodes[j]].e_nid) + "_" + to_string(nid_dict[preNode].s_nid) + "_" + string(1,rmark));
+                                    break;
+                                case '3':
+                                    hLinks.push_back(to_string(nid_dict[nodes[j]].e_nid) + "_" + to_string(nid_dict[preNode].e_nid) + "_" + string(1,rmark));
+                                    break;
+                                case '4':
+                                    hLinks.push_back(to_string(nid_dict[nodes[j]].s_nid) + "_" + to_string(nid_dict[preNode].s_nid) + "_" + string(1,rmark));
+                                    break;
+                                default:
+                                    hLinks.push_back(to_string(nid_dict[nodes[j]].s_nid) + "_" + to_string(nid_dict[preNode].e_nid) + "_" + string(1,rmark));
+                            }
+                            //
+                            //edGroup.insert(sym);
+                        //}
+                    }
+                    
+                }
+            }
+            //
+            if(visCigar){
+                if(tIn){
+                    tpath += string(1,orient[j]) + to_string(nodes[j]);
+                }else{
+                    tpath = string(1,orient[j]) + to_string(nodes[j]);
+                    ndStart = j;                   
+                }
+            }
+            //
+            preOri = orient[j];
+            preNode = nodes[j];
+            preIn = 1;
+            tIn = 1;
+        }else{
+            if(! refSim){
+                preOri = orient[j];
+                preNode = nodes[j];
+                preIn = 0;
+            }
+            
+            if(visCigar){
+                if(tIn > 0){
+                    ndEnd = j;
+                    qChr.push_back(rgName);
+                    qStart.push_back(qPosVec[ndStart]);
+                    qEnd.push_back(qPosVec[ndEnd-1]);
+                    qPath.push_back(tpath);
+                    // * -> not contain CIGAR
+                    if(rgCigar != "*"){
+                        //[ndStart,ndEnd)
+                        string tCigar = subCigar(rgCigar,ndStart,ndEnd);                       
+                        qCigar.push_back(tCigar);
+                    }
+                }
+            }
+            tIn = 0;
+        }
+        
+    }
+    //
+    if(visCigar){
+        if(tIn > 0){
+            ndEnd = nodes.size();
+            qChr.push_back(rgName);
+            qStart.push_back(qPosVec[ndStart]);
+            qEnd.push_back(qPosVec[ndEnd-1]);
+            qPath.push_back(tpath);              
+            if(rgCigar != "*"){
+                string tCigar = subCigar(rgCigar,ndStart,ndEnd);
+                qCigar.push_back(tCigar);
+            }
+        }
+    }
+}
+
+void GraphRange::eAsmFind2(bool refSim,int asmCode,vector<char> &orient,vector<NodeType> &nodes,unordered_map<NodeType,Nid> &nid_dict,unordered_set<int> &ndGroup,map<NEdge,int> &h_edge_dict){
     char preOri = '\0';
     int preIn = 0;
     NodeType preNode = 0;
     int tIn = 0;
     for(size_t j = 0; j < orient.size(); ++j){
+        //if(refSkip.find(nodes[j]) != refSkip.end()){
+        //    continue;
+        //}
         if(nid_dict.find(nodes[j]) != nid_dict.end()){
             tIn = 1;
             if(ndGroup.find(nodes[j]) == ndGroup.end()){
@@ -217,97 +408,385 @@ void GraphRange::eAssFind(vector<char> &orient,vector<NodeType> &nodes,map<NEdge
             if(preIn > 0){
                 char mark = getMark(preOri,orient[j],'>');
                 NEdge sym = {preNode,nodes[j],mark};
-                
-                if(r_edge_dict.find(sym) != r_edge_dict.end()){
-                    hDir.push_back('1');
-                    //
-                    if(mark == '2'){
-                        if(r_edge_dict[sym] == 0){
-                            mark = '1';
-                        }
-                    }
-                    switch(mark){
-                        case '1':
-                            hLinks.push_back(to_string(nid_dict[preNode].e_nid) + "_" + to_string(nid_dict[nodes[j]].s_nid) + "_" + string(1,mark));
-                            break;
-                        case '2':
-                            hLinks.push_back(to_string(nid_dict[preNode].e_nid) + "_" + to_string(nid_dict[nodes[j]].s_nid) + "_" + string(1,mark));
-                            break;
-                        case '3':
-                            hLinks.push_back(to_string(nid_dict[preNode].e_nid) + "_" + to_string(nid_dict[nodes[j]].e_nid) + "_" + string(1,mark));
-                            break;
-                        case '4':
-                            hLinks.push_back(to_string(nid_dict[preNode].s_nid) + "_" + to_string(nid_dict[nodes[j]].s_nid) + "_" + string(1,mark));
-                            break;
-                        default:
-                            hLinks.push_back(to_string(nid_dict[preNode].s_nid) + "_" + to_string(nid_dict[nodes[j]].e_nid) + "_" + string(1,mark));
-                    }
-                }else{
-                    char rmark = revMark(mark);
-                    NEdge sym = {nodes[j],preNode,rmark};
-                    
-                    if(r_edge_dict.find(sym) != r_edge_dict.end()){
-                        hDir.push_back('0');
-                        //
-                        if(rmark == '2'){
-                            if(r_edge_dict[sym] == 0){
-                                rmark = '1';   
-                            }
-                        }
-                        
-                        switch(rmark){
-                            case '1':
-                                hLinks.push_back(to_string(nid_dict[nodes[j]].e_nid) + "_" + to_string(nid_dict[preNode].s_nid) + "_" + string(1,rmark));
-                                break;
-                            case '2':
-                                hLinks.push_back(to_string(nid_dict[nodes[j]].e_nid) + "_" + to_string(nid_dict[preNode].s_nid) + "_" + string(1,rmark));
-                                break;
-                            case '3':
-                                hLinks.push_back(to_string(nid_dict[nodes[j]].e_nid) + "_" + to_string(nid_dict[preNode].e_nid) + "_" + string(1,rmark));
-                                break;
-                            case '4':
-                                hLinks.push_back(to_string(nid_dict[nodes[j]].s_nid) + "_" + to_string(nid_dict[preNode].s_nid) + "_" + string(1,rmark));
-                                break;
-                            default:
-                                hLinks.push_back(to_string(nid_dict[nodes[j]].s_nid) + "_" + to_string(nid_dict[preNode].e_nid) + "_" + string(1,rmark));
-                        }
-                    }
-                    
+                if(h_edge_dict.find(sym) == h_edge_dict.end()){
+                    h_edge_dict.emplace(sym,asmCode);
                 }
             }
+            //
             preOri = orient[j];
             preIn = tIn;
-            preNode = nodes[j];
+            preNode = nodes[j]; 
+        }else{
+            if(! refSim){
+                tIn = 0;
+                preOri = orient[j];
+                preIn = tIn;
+                preNode = nodes[j];
+            }
         }
+        
     }
 }
 
-void GraphRange::hAssNode(string &ass,int assNum,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict){
-    string pathFile = pathDir + "/" + to_string(assNum) + ".path";
+bool GraphRange::f_cigar2pos(int qStart,int rStart,unordered_map<NodeType,LenAsm> &info,string &cigar,vector<int> &nodes,vector<string> &qCigarVec,vector<int> &qPosVec){    
+    int tvalue = 0;
+    int rMove = 0, qMove = 0;
+    int qPreMove = 0;
+    int nextPos = 0;
+    // firLen,rStart
+    int firLen;  
+    if(info.find(nodes[0]) != info.end()){
+        firLen = info[nodes[0]].len;
+    }else{
+        return false;
+    }
+    int cumLen = firLen - rStart;
+    //
+    qPosVec.push_back(qStart);
+    string tCigar = "";
+    int i = 0;
+    int tlen = 0;
+    int preCum = cumLen;
+    int n = nodes.size();
+    for(char x : cigar){
+        if(x >= '0' && x <= '9'){
+            tvalue = tvalue * 10 + (x - '0');
+        }else{
+            switch(x){
+                case 'M':
+                    qMove += tvalue;
+                    rMove += tvalue;
+                    break;
+                case 'X':
+                    qMove += tvalue;
+                    rMove += tvalue;
+                    break;
+                case '=':
+                    qMove += tvalue;
+                    rMove += tvalue;
+                    break;
+                case 'I':
+                    qMove += tvalue;
+                    break;
+                case 'S':
+                    qMove += tvalue;
+                    break;
+                case 'D':
+                    rMove += tvalue;
+                    break;
+                case 'N':
+                    rMove += tvalue;
+                    break;
+            }
+            if(rMove < cumLen){
+                tCigar += to_string(tvalue) + string(1,x);
+            }else if(rMove == cumLen){
+                tCigar += to_string(tvalue) + string(1,x);
+                qCigarVec.push_back(tCigar);
+                tCigar = "";
+                //
+                ++i;
+                if(i < n){
+                    if(info.find(nodes[i]) != info.end()){
+                        tlen = info[nodes[i]].len;
+                    }else{
+                        return false;
+                    }
+                    cumLen += tlen;
+                    //
+                    nextPos = qStart + qMove;
+                    qPosVec.push_back(nextPos);                    
+                }
+            }else{
+                // |-------|-------|---------|
+                //      |----------------------|
+                int nd = tvalue - (rMove - cumLen);
+                //if(nd > 0){
+                    tCigar += to_string(nd) + string(1,x);
+                //}
+                qCigarVec.push_back(tCigar);
+                tCigar = "";
+                // for last node cumLen >= rMove
+                preCum = cumLen;
+                ++i;
+                //
+                int qd = nd;
+                if(i < n){
+                    if(qMove > qPreMove){
+                        nextPos = qStart + qMove + nd;
+                    }else{
+                        nextPos = qStart + qMove;
+                    }
+                    qPosVec.push_back(nextPos);
+                    //
+                    if(info.find(nodes[i]) != info.end()){
+                        tlen = info[nodes[i]].len;
+                    }else{
+                        return false;
+                    }
+                    cumLen += tlen;
+                    qd += tlen;
+                }
+                //if(i < nodes.size(){
+                    while(1){
+                        if(rMove < cumLen){
+                            //int nd = tlen - (cumLen - rMove);
+                            int nd = rMove - preCum;
+                            tCigar = to_string(nd) + string(1,x);
+                            break;
+                        }else if(rMove == cumLen){
+                            tCigar = to_string(tlen) + string(1,x);
+                            qCigarVec.push_back(tCigar);
+                            tCigar = "";
+                            //
+                            preCum = cumLen;
+                            ++i;
+                            if(i < n){
+                                nextPos = qStart + qMove;
+                                qPosVec.push_back(nextPos);
+                                //
+                                if(info.find(nodes[i]) != info.end()){
+                                    tlen = info[nodes[i]].len;
+                                }else{
+                                    return false;
+                                }
+                                cumLen += tlen;
+                            }
+                            break;
+                        }else{
+                            tCigar = to_string(tlen) + string(1,x);
+                            qCigarVec.push_back(tCigar);
+                            tCigar = "";
+                            //
+                            preCum = cumLen;
+                            ++i;
+                            if(i < n){
+                                if(qMove > qPreMove){
+                                    nextPos = qStart + qPreMove + qd;
+                                }else{
+                                    nextPos = qStart + qMove;
+                                }
+                                qPosVec.push_back(nextPos);
+                                //
+                                if(info.find(nodes[i]) != info.end()){
+                                    tlen = info[nodes[i]].len;
+                                }else{
+                                    return false;
+                                }
+                                cumLen += tlen;
+                                qd += tlen;
+                            }
+                        }
+                    }
+                //}
+            }
+            //
+            tvalue = 0;
+            qPreMove = qMove;
+        }
+    }
+    //
+    if(tCigar != ""){
+        qCigarVec.push_back(tCigar);
+    }
+    //
+    return true;
+}
+
+bool GraphRange::f_path2pos(int rStart,unordered_map<NodeType,LenAsm> &info,vector<int> &nodes,vector<int> &qPosVec){
+    int tpos = rStart;
+    for(int x : nodes){        
+        qPosVec.push_back(tpos);
+        if(info.find(x) != info.end()){
+            tpos += info[x].len;
+        }else{
+            return false;
+        }
+    }
+    return true;
+}
+
+void GraphRange::hAsmNode(string &taskDir,bool refSim,unordered_map<NodeType,LenAsm> &info,int asmNum,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict){
+    string pathFile = "";
+    //
+    string rgCigar = "*";
+    bool formR = true;
+    //
+    if(taskDir != ""){
+        pathFile = taskDir + "/query.path";
+    }else{
+        pathFile = pathDir + "/" + to_string(asmNum) + ".path";
+        //
+        string formFile = upDir + "/form.info";
+        if(access(formFile.c_str(),F_OK) == 0){
+            formR = false;
+        }
+    }
     ifstream in(pathFile.c_str());
     if(! in){
         cerr<<"Error: file open failed. "<<pathFile<<endl;
-        exit(1);
+        return;
+        //exit(1);
     }
-    
+    //   
     string pathLine;
     stringstream strStream;
     unordered_set<int> ndGroup;
+    //
     while(getline(in,pathLine)){
         strStream << pathLine;
         string r_chr,path;
         strStream >> r_chr;
         strStream >> path;
         
-        string tName = "",t_hap = "",tchr = "";
-        assSplit(r_chr,sep,tName,t_hap,tchr);
+        //string tName = "",t_hap = "",tchr = "";
+        //asmSplit(r_chr,sep,tName,t_hap,tchr);
+        //string tAsm = tName + sep + t_hap;
         
-        string tAss = tName + sep + t_hap;
         vector<char> orient;
         vector<NodeType> nodes;
-        bool flag = false;
-        if(tAss == ass){
-            flag = true;
+        //
+        vector<int> qPosVec;
+        //
+        NodeType snode = 0;
+        for(size_t i = 0; i < path.length(); ++i){
+            if(path[i] == '>' || path[i] == '<'){
+                orient.push_back(path[i]);
+                if(i > 0){
+                    nodes.push_back(snode);
+                    snode = 0;
+                }
+            }else{
+                snode = snode * 10 + (path[i] - '0');
+            }
+        }
+        nodes.push_back(snode);
+        // 
+        if(formR){
+            int qStart,rStart;
+            string cigar;
+            vector<string> qCigarVec;
+            vector<int> qPosVec;
+            strStream >> qStart >> rStart >> cigar;          
+            bool visCigar = f_cigar2pos(qStart,rStart,info,cigar,nodes,qCigarVec,qPosVec);
+            if(visCigar){
+                rgCigar = "";
+                for(size_t i = 0; i < orient.size(); ++i){
+                    rgCigar += string(1,orient[i]) + qCigarVec[i];
+                } 
+            }
+            eAsmFind(visCigar,refSim,orient,nodes,qPosVec,rgCigar,r_chr,r_edge_dict,nid_dict,ndGroup);
+        }else{
+            char pType;
+            int rStart;
+            strStream >> pType;
+            if(pType == 'W'){
+                strStream >>  rStart;
+            }else{
+                rStart = 0;
+            }
+            bool visCigar = f_path2pos(rStart,info,nodes,qPosVec);
+            //
+            eAsmFind(visCigar,refSim,orient,nodes,qPosVec,rgCigar,r_chr,r_edge_dict,nid_dict,ndGroup);
+        }
+        strStream.clear();
+        strStream.str("");
+    }   
+    //
+    in.close();
+}
+
+// hEdgeAsm
+void GraphRange::hEdge2fig(unordered_map<NodeType,Nid> &nid_dict,map<NEdge,int> &h_edge_dict,map<NEdge,int> &r_edge_dict){
+    for(auto &tedge : h_edge_dict){
+        if(r_edge_dict.find(tedge.first) != r_edge_dict.end()){                   
+            hDir.push_back('1');
+            char mark = tedge.first.mark;
+            hEdgeAsm.push_back(tedge.second);
+            //
+            if(mark == '2'){
+                if(r_edge_dict[tedge.first] == 0){
+                    mark = '1';
+                }
+            }                       
+            switch(mark){
+                case '1':
+                    hLinks.push_back(to_string(nid_dict[tedge.first.node1].e_nid) + "_" + to_string(nid_dict[tedge.first.node2].s_nid) + "_" + string(1,mark));                          
+                    break;
+                case '2':
+                    hLinks.push_back(to_string(nid_dict[tedge.first.node1].e_nid) + "_" + to_string(nid_dict[tedge.first.node2].s_nid) + "_" + string(1,mark));
+                    break;
+                case '3':
+                    hLinks.push_back(to_string(nid_dict[tedge.first.node1].e_nid) + "_" + to_string(nid_dict[tedge.first.node2].e_nid) + "_" + string(1,mark));
+                    break;
+                case '4':
+                    hLinks.push_back(to_string(nid_dict[tedge.first.node1].s_nid) + "_" + to_string(nid_dict[tedge.first.node2].s_nid) + "_" + string(1,mark));
+                    break;
+                default:
+                    hLinks.push_back(to_string(nid_dict[tedge.first.node1].s_nid) + "_" + to_string(nid_dict[tedge.first.node2].e_nid) + "_" + string(1,mark));
+            }
+        }else{
+            char rmark = revMark(tedge.first.mark);
+            NEdge sym = {tedge.first.node2,tedge.first.node1,rmark};
+            
+            if(r_edge_dict.find(sym) != r_edge_dict.end()){
+                    hDir.push_back('0');
+                    hEdgeAsm.push_back(tedge.second);
+                    //
+                    if(rmark == '2'){
+                        if(r_edge_dict[sym] == 0){
+                            rmark = '1';   
+                        }
+                    }
+                    switch(rmark){
+                        case '1':
+                            hLinks.push_back(to_string(nid_dict[tedge.first.node2].e_nid) + "_" + to_string(nid_dict[tedge.first.node1].s_nid) + "_" + string(1,rmark));
+                            break;
+                        case '2':
+                            hLinks.push_back(to_string(nid_dict[tedge.first.node2].e_nid) + "_" + to_string(nid_dict[tedge.first.node1].s_nid) + "_" + string(1,rmark));
+                            break;
+                        case '3':
+                            hLinks.push_back(to_string(nid_dict[tedge.first.node2].e_nid) + "_" + to_string(nid_dict[tedge.first.node1].e_nid) + "_" + string(1,rmark));
+                            break;
+                        case '4':
+                            hLinks.push_back(to_string(nid_dict[tedge.first.node2].s_nid) + "_" + to_string(nid_dict[tedge.first.node1].s_nid) + "_" + string(1,rmark));
+                            break;
+                        default:
+                            hLinks.push_back(to_string(nid_dict[tedge.first.node2].s_nid) + "_" + to_string(nid_dict[tedge.first.node1].e_nid) + "_" + string(1,rmark));
+                    }
+            }
+            
+        }
+    }
+}
+
+void GraphRange::hAsmNode2(bool refSim,vector<int> &asmNumVec,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict){
+    int asmCode = 0;
+    map<NEdge,int> h_edge_dict;
+    //
+    for(int asmNum : asmNumVec){
+        string pathFile = pathDir + "/" + to_string(asmNum) + ".path";
+        ifstream in(pathFile.c_str());
+        if(! in){
+            cerr<<"Error: file open failed. "<<pathFile<<endl;
+            //exit(1);
+        }        
+        string pathLine;
+        stringstream strStream;
+        unordered_set<int> ndGroup;
+        while(getline(in,pathLine)){
+            strStream << pathLine;
+            string r_chr,path;
+            strStream >> r_chr;
+            strStream >> path;
+            
+            string tName = "",t_hap = "",tchr = "";
+            asmSplit(r_chr,sep,tName,t_hap,tchr);
+            
+            string tAsm = tName + sep + t_hap;
+            vector<char> orient;
+            vector<NodeType> nodes;
+            
             NodeType snode = 0;
             for(size_t i = 0; i < path.length(); ++i){
                 if(path[i] == '>' || path[i] == '<'){
@@ -322,19 +801,16 @@ void GraphRange::hAssNode(string &ass,int assNum,map<NEdge,int> &r_edge_dict,uno
             }
             nodes.push_back(snode);
             //
-            eAssFind(orient,nodes,r_edge_dict,nid_dict,ndGroup);
-        }else{
-            if(flag){
-                break;
-            }
+            eAsmFind2(refSim,asmCode,orient,nodes,nid_dict,ndGroup,h_edge_dict);
+            strStream.clear();
+            strStream.str("");
         }
-        
-        strStream.clear();
-        strStream.str("");
+        in.close();
+        //
+        ++asmCode;
     }
-    
-    in.close();
-    
+    //
+    hEdge2fig(nid_dict,h_edge_dict,r_edge_dict);
 }
 
 //------------------
@@ -344,6 +820,7 @@ void GraphRange::parseIndex(int chrNum,int sStart,int sEnd,unordered_map<NodeTyp
     if(! efh){
         cerr<<"Error: file open failed. "<<eIndexFile<<endl;
         return;
+        //exit(1);
     }
     
     string bEdgeFile = upDir + "/edge.bw";
@@ -351,6 +828,7 @@ void GraphRange::parseIndex(int chrNum,int sStart,int sEnd,unordered_map<NodeTyp
     if(! xfh){
         cerr<<"Error: file open failed. "<<bEdgeFile<<endl;
         return;
+        //exit(1);
     }
     
     string strLine;
@@ -361,15 +839,22 @@ void GraphRange::parseIndex(int chrNum,int sStart,int sEnd,unordered_map<NodeTyp
     
     int nchr = 0;
     int intSize = sizeof(int);
+    //int llSize = sizeof(long long);
     efh.read((char *)&nchr,intSize);
     
+    //int refChr = -1,offByte,nLine;
     int refChr = -1;
+    bool findChr = false;
+    
     ChrRange crRange;
     int crSize = sizeof(ChrRange);
     for(int x = 0; x < nchr; ++x){
         efh.read((char *)&refChr,intSize);
+        //efh.read((char *)&offByte,intSize);
+        //efh.read((char *)&nLine,intSize);
         efh.read((char *)&crRange,crSize);
         if(refChr == chrNum){
+            findChr = true;
             break;
         }
     }
@@ -379,7 +864,7 @@ void GraphRange::parseIndex(int chrNum,int sStart,int sEnd,unordered_map<NodeTyp
     int total = 0;
     bool flag = true;
     long long edOff = 0LL;
-    if(refChr >= 0){
+    if(findChr){
         efh.clear();
         efh.seekg(crRange.rByte,ios::beg);
         for(int k = 0; k < crRange.ranNum; ++k){
@@ -426,6 +911,7 @@ int GraphRange::getChrNum(string &sChr){
     ifstream cfh(chrFile.c_str());
     if(! cfh){
         cerr<<"Error: file open failed. "<<chrFile<<endl;
+        //exit(1);
         return -1;
     }
     string chrLine;
@@ -433,6 +919,7 @@ int GraphRange::getChrNum(string &sChr){
     while(getline(cfh,chrLine)){
         int tpos = chrLine.find("\t");
         string tchr = chrLine.substr(0,tpos);
+//cout<<tchr<<" "<<sChr<<" @@@"<<endl;        
         if(tchr == sChr){
             chrNum = pos;
             break;
@@ -443,16 +930,16 @@ int GraphRange::getChrNum(string &sChr){
     return chrNum;
 }
 
-int GraphRange::getAssNum(string &ass){
-    ifstream in(assFile.c_str());
+int GraphRange::getAsmNum(string &asmb){
+    ifstream in(asmFile.c_str());
     if(! in){
-        cerr<<"Error: file open failed. "<<assFile<<endl;
+        cerr<<"Error: file open failed. "<<asmFile<<endl;
         exit(1);
     }
     int pos = 0,tpos = -1;
-    string assLine;
-    while(getline(in,assLine)){
-        if(assLine == ass){
+    string asmLine;
+    while(getline(in,asmLine)){
+        if(asmLine == asmb){
             tpos = pos;
             break;
         }
@@ -462,7 +949,28 @@ int GraphRange::getAssNum(string &ass){
     return tpos;
 }
 
-void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType> &rangeNode,unordered_set<NodeType> &exNode,unordered_map<NodeType,LenAss> &info,int &realLen){
+void GraphRange::getAsmNum2(set<string> &nameSet,vector<int> &asmNumVec){
+    ifstream in(asmFile.c_str());
+    if(! in){
+        cerr<<"Error: file open failed. "<<asmFile<<endl;
+        exit(1);
+    }
+    int pos = 0;
+    string asmLine;
+    while(getline(in,asmLine)){
+        if(nameSet.find(asmLine) != nameSet.end()){
+            asmNumVec.push_back(pos);
+        }
+        ++pos;
+    }
+    in.close();
+}
+
+
+void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType> &rangeNode,unordered_map<NodeType,char> &exNode,unordered_map<NodeType,LenAsm> &info,int &realLen,int &realStart){
+    
+    //int pos = eIndexFile.find_last_of("/");
+    //string outDir = eIndexFile.substr(0,pos + 1);
     
     string rndFile = upDir + "/node.ref.bw";
     string nrdFile = upDir + "/node.nonref.bw";
@@ -471,24 +979,29 @@ void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType
     ifstream mgfh(mgDxFile.c_str());
     ifstream rnfh(rndFile.c_str());
     ifstream ndfh(nrdFile.c_str());
-    
+ 
     //
     int nchr = 0;
     int intSize = sizeof(int);
+
     mgfh.read((char *)&nchr,intSize);
 
     int refChr = -1;
+    bool findChr = false;
+
     ChrRange crRange;
     int crSize = sizeof(ChrRange);
     for(int x = 0; x < nchr; ++x){
         mgfh.read((char *)&refChr,intSize);
-        mgfh.read((char *)&crRange,crSize);
+        
+        mgfh.read((char *)&crRange,crSize);      
         if(refChr == chrNum){
+            findChr = true;
             break;
         }
     }
     
-    vector<EdRang> refVec, nRefVec;
+    //
     long long refOff = 0LL,nRefOff = 0LL;
     int rt = 0, nrt = 0;
     bool flag = true, nflag = true;
@@ -498,7 +1011,7 @@ void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType
     int eEnd = sEnd + ex;
     
     
-    if(refChr >= 0){
+    if(findChr){
         mgfh.clear();
         mgfh.seekg(crRange.rByte,ios::beg);
         for(int k = 0; k < crRange.ranNum; ++k){
@@ -552,8 +1065,9 @@ void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType
     if(flag){
         cerr<<"Error: nodes can't be found in the interval. "<<chrNum<<" : "<<sStart<<" - "<<sEnd<<endl;
         return;
+        //exit(1);
     }
-    //
+    // ref node consecutive
     rnfh.seekg(refOff,ios::beg);
     for(int m = 0; m < rt; ++m){
         int r_node,r_start,r_end,r_len;
@@ -562,31 +1076,47 @@ void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType
         rnfh.read((char *)&r_end,intSize);
         
         r_len = r_end - r_start + 1;
-        LenAss tx = {r_len,0};
+        LenAsm tx = {r_len,0};
         if(info.find(r_node) == info.end()){
             info.emplace(r_node,tx);
         }
         //
         if(r_start <= eStart){
             if(r_end >= eStart){
-                exNode.insert(r_node);
+                //
                 if(r_end >= sStart){
                     rangeNode.push_back(r_node);
                     realLen += r_len;
+                    //
+                    realStart = r_start;
+                    //
+                    exNode.emplace(r_node,'0');
+                }else{
+                    exNode.emplace(r_node,'2');
                 }
             }
         }else{
             if(r_start <= eEnd){
-                exNode.insert(r_node);
+                //
                 if(r_start <= sStart){
                     if(r_end >= sStart){
                         rangeNode.push_back(r_node);
                         realLen += r_len;
+                        //
+                        realStart = r_start;
+                        //
+                        exNode.emplace(r_node,'0');
+                    }else{
+                        exNode.emplace(r_node,'2');
                     }
                 }else{
                     if(r_start <= sEnd){
                         rangeNode.push_back(r_node);
                         realLen += r_len;
+                        //
+                        exNode.emplace(r_node,'0');
+                    }else{
+                        exNode.emplace(r_node,'1');
                     }
                 }
             }else{
@@ -599,23 +1129,24 @@ void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType
     //
     ndfh.seekg(nRefOff,ios::beg);
     for(int n = 0; n < nrt; ++n){
-        int t_node,t_len,t_ass;
+        int t_node,t_len,t_asm;
         ndfh.read((char *)&t_node,intSize);
         ndfh.read((char *)&t_len,intSize);
-        ndfh.read((char *)&t_ass,intSize);
+        ndfh.read((char *)&t_asm,intSize);
         //
-        LenAss tx = {t_len,t_ass};
+        LenAsm tx = {t_len,t_asm};
         if(info.find(t_node) == info.end()){
             info.emplace(t_node,tx);
         }
     }
 
     ndfh.close();
+
 }
 
-void GraphRange::queryDbPath(int assNum,int chrNum,int sStart,int sEnd,vector<vector<char> > &oriMulti,vector<vector<int> > &nodeMulti){
-    string bPathFile = pathDir + "/" + to_string(assNum) + ".path.bw";
-    string dxPathFile = pathDir + "/" + to_string(assNum) + ".path.bdx";
+void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEnd,unordered_map<NodeType,LenAsm> &info,vector<vector<char> > &oriMulti,vector<vector<int> > &nodeMulti,vector<vector<int> > &qPosMulti, vector<string> &cigarMulti,vector<string> &nameMulti){
+    string bPathFile = pathDir + "/" + to_string(asmNum) + ".path.bw";
+    string dxPathFile = pathDir + "/" + to_string(asmNum) + ".path.bdx";    
     
     ifstream pfh(bPathFile);
     if(! pfh){
@@ -627,6 +1158,7 @@ void GraphRange::queryDbPath(int assNum,int chrNum,int sStart,int sEnd,vector<ve
         cerr<<"Error: file open failed. "<<dxPathFile<<endl;
         exit(1);
     }
+    
     int nchr = 0;
     int intSize = sizeof(int);
     xfh.read((char *)&nchr,intSize);
@@ -634,6 +1166,7 @@ void GraphRange::queryDbPath(int assNum,int chrNum,int sStart,int sEnd,vector<ve
     int refChr;
     ChrRange crRange;
     int crSize = sizeof(ChrRange);
+    //
     bool flag = false;
     for(int x = 0; x < nchr; ++x){
         xfh.read((char *)&refChr,intSize);
@@ -677,6 +1210,7 @@ void GraphRange::queryDbPath(int assNum,int chrNum,int sStart,int sEnd,vector<ve
         }
     }else{
         cerr<<"Error: chromosome can't be found (path search). "<<endl;
+        //exit(1);
     }
     
     int lndSize = sizeof(LagNode);
@@ -686,51 +1220,190 @@ void GraphRange::queryDbPath(int assNum,int chrNum,int sStart,int sEnd,vector<ve
         
         vector<char> oriVec;
         vector<int> ndVec;
-        while(1){
-            int firNode;
-            char firOri;
-            int lagNum;
-            
-            pfh.read((char *)&firNode,intSize);
-            pfh.read(&firOri,1);
-            pfh.read((char *)&lagNum,intSize);
-            if(firOri == '>' || firOri == '<'){
-                if(! oriVec.empty()){
-                    oriMulti.push_back(oriVec);
-                    nodeMulti.push_back(ndVec);
+        //
+        string nameFile = pathDir + "/" + to_string(asmNum) + ".name";
+        ifstream mfh(nameFile);
+        if(! mfh){
+            cerr<<"Error: file open failed. "<<nameFile<<endl;
+            exit(1);
+        }
+        vector<int> qPosVec;
+        string cigarStr = "";
+        string nameLine;
+        vector<string> allName;
+        while(getline(mfh,nameLine)){
+            allName.push_back(nameLine);  
+        }
+        string firName = "";
+        mfh.close();
+        //
+       
+        if(formR){
+            while(1){
+                int pathNum;
+                int firNode;
+                char firOri;
+                int lagNum;   
+                
+                pfh.read((char *)&pathNum,intSize);
+                pfh.read((char *)&firNode,intSize);
+                pfh.read(&firOri,1);
+                pfh.read((char *)&lagNum,intSize);
 
-                    oriVec.clear();
-                    ndVec.clear();
-                }
-            }else{
-                if(firOri == '1'){
-                    firOri = '>';
+                if(firOri == '>' || firOri == '<'){
+                    if(! oriVec.empty()){
+                        oriMulti.push_back(oriVec);
+                        nodeMulti.push_back(ndVec);
+                        qPosMulti.push_back(qPosVec);
+                        cigarMulti.push_back(cigarStr);
+                        //
+                        nameMulti.push_back(firName);
+
+                        oriVec.clear();
+                        ndVec.clear();
+                        qPosVec.clear();
+                        cigarStr = "";
+                    }
+                    firName = allName[pathNum];
                 }else{
-                    firOri = '<';
+                    if(firOri == '1'){
+                        firOri = '>';
+                    }else{
+                        firOri = '<';
+                    }
+                }
+                
+                oriVec.push_back(firOri);
+                ndVec.push_back(firNode);
+                for(int i = 0; i < lagNum; ++i){
+                    LagNode tLag;
+                    pfh.read((char *)&tLag,lndSize);
+                    ndVec.push_back(firNode + tLag.diff);
+                    oriVec.push_back(tLag.ori);
+                  
+                }
+             
+                //
+                int tpos;
+                for(int j = 0; j <= lagNum; ++j){
+                    pfh.read((char *)&tpos,intSize);
+                    qPosVec.push_back(tpos);
+                   
+                }
+
+                int cigarSize;
+                pfh.read((char *)&cigarSize,intSize);
+                char *tCigar = new char[cigarSize + 1];
+                pfh.read(tCigar,cigarSize);
+                tCigar[cigarSize] = '\0';
+                if(cigarStr == ""){
+                    cigarStr = tCigar;
+                }else{
+                    string tStr = tCigar;
+                    cigarStr += tStr;
+                }
+                delete []tCigar;
+                //
+                tnum += (lagNum + 1);
+           
+                if(tnum == total){
+                    break;
                 }
             }
-            
-            oriVec.push_back(firOri);
-            ndVec.push_back(firNode);
-            for(int i = 0; i < lagNum; ++i){
-                LagNode tLag;
-                pfh.read((char *)&tLag,lndSize);
-                ndVec.push_back(firNode + tLag.diff);
-                oriVec.push_back(tLag.ori);
-            }
-            
-            tnum += (lagNum + 1);
-            if(tnum == total){
-                break;
-            }
-        }
-        if(! oriVec.empty()){
-            oriMulti.push_back(oriVec);
-            nodeMulti.push_back(ndVec);
+            if(! oriVec.empty()){
+                oriMulti.push_back(oriVec);
+                nodeMulti.push_back(ndVec);
+                qPosMulti.push_back(qPosVec);
+                cigarMulti.push_back(cigarStr);
+                //
+                nameMulti.push_back(firName);
 
-            oriVec.clear();
-            ndVec.clear();
+                oriVec.clear();
+                ndVec.clear();
+                qPosVec.clear();
+                cigarStr = "";
+            }
+        }else{
+            while(1){
+                int pathNum;
+                int firNode;
+                char firOri;
+                int lagNum;   
+                
+                pfh.read((char *)&pathNum,intSize);
+                pfh.read((char *)&firNode,intSize);
+                pfh.read(&firOri,1);
+                pfh.read((char *)&lagNum,intSize);
+                if(firOri == '>' || firOri == '<'){
+                    if(! oriVec.empty()){
+                        oriMulti.push_back(oriVec);
+                        nodeMulti.push_back(ndVec);
+                        qPosMulti.push_back(qPosVec);
+                        //
+                        nameMulti.push_back(firName);
+
+                        oriVec.clear();
+                        ndVec.clear();
+                        qPosVec.clear();
+                    }
+                    //
+                    firName = allName[pathNum];
+                }else{
+                    if(firOri == '1'){
+                        firOri = '>';
+                    }else{
+                        firOri = '<';
+                    }
+                }
+                // index of first node
+                int curPos = ndVec.size();
+                oriVec.push_back(firOri);
+                ndVec.push_back(firNode);
+                for(int i = 0; i < lagNum; ++i){
+                    LagNode tLag;
+                    pfh.read((char *)&tLag,lndSize);
+                    ndVec.push_back(firNode + tLag.diff);
+                    oriVec.push_back(tLag.ori);
+                }
+                //
+                int tpos;
+                pfh.read((char *)&tpos,intSize);
+                qPosVec.push_back(tpos);            
+                bool nf = false;
+                // -1 --> Some graph nodes were not stored during graph indexing. Coordinate is uncertain.
+                for(int j = 0; j < lagNum; ++j){
+                    if(nf){
+                        qPosVec.push_back(-1);
+                    }else{
+                        if(info.find(ndVec[curPos + j]) != info.end()){
+                            tpos += info[ndVec[curPos + j]].len;
+                            qPosVec.push_back(tpos);                          
+                        }else{
+                            nf = true;
+                            qPosVec.push_back(-1);
+                        }
+                    }
+                }
+                //
+                tnum += (lagNum + 1);
+                if(tnum == total){
+                    break;
+                }
+            }
+            if(! oriVec.empty()){
+                oriMulti.push_back(oriVec);
+                nodeMulti.push_back(ndVec);
+                qPosMulti.push_back(qPosVec);
+                //
+                nameMulti.push_back(firName);
+
+                oriVec.clear();
+                ndVec.clear();
+                qPosVec.clear();
+            }
         }
+        //
+
     }else{
         cerr<<"Warning: path can't be found. "<<endl;
     }
@@ -738,26 +1411,78 @@ void GraphRange::queryDbPath(int assNum,int chrNum,int sStart,int sEnd,vector<ve
     xfh.close();
 }
 
-void GraphRange::dxAssNode(int assNum,int chrNum,int sStart,int sEnd,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict){
+void GraphRange::dxAsmNode(bool refSim,int asmNum,int chrNum,int sStart,int sEnd,unordered_map<NodeType,LenAsm> &info,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict){
     vector<vector<char> > oriMulti;
     vector<vector<int> > nodeMulti;
-    queryDbPath(assNum,chrNum,sStart,sEnd,oriMulti,nodeMulti);
+    //
+    vector<vector<int> > qPosMulti;
+    vector<string> cigarMulti;
+    vector<string> nameMulti;
+    
+    bool formR = true;
+    string formFile = upDir + "/form.info";
+	if(access(formFile.c_str(),F_OK) == 0){
+        formR = false;
+    }
+    
+    queryDbPath(formR,asmNum,chrNum,sStart,sEnd,info,oriMulti,nodeMulti,qPosMulti,cigarMulti,nameMulti);
     unordered_set<int> ndGroup;
-    for(size_t i =0; i < oriMulti.size(); ++i){
-        eAssFind(oriMulti[i],nodeMulti[i],r_edge_dict,nid_dict,ndGroup);
+    //
+    bool visCigar = true;
+    if(formR){
+        for(size_t i =0; i < oriMulti.size(); ++i){
+            eAsmFind(visCigar,refSim,oriMulti[i],nodeMulti[i],qPosMulti[i],cigarMulti[i],nameMulti[i],r_edge_dict,nid_dict,ndGroup);
+        }
+    }else{
+        string rgCigar = "*";
+        for(size_t i =0; i < oriMulti.size(); ++i){
+            eAsmFind(visCigar,refSim,oriMulti[i],nodeMulti[i],qPosMulti[i],rgCigar,nameMulti[i],r_edge_dict,nid_dict,ndGroup);
+        }
     }
 }
-//
-void GraphRange::readRefGene(string &ovFile,string &gDxFile,int chrNum,int sStart,int sEnd,unordered_set<NodeType> &retainID,vector<NodeGene> &refNodeGene){
+//----------------------------------
+/*
+    When multiple assemblies are selected to highlight the detailed information on the highlighted paths will not be displayed 
+*/
+void GraphRange::dxAsmNode2(bool refSim,vector<int> &asmVec,int chrNum,int sStart,int sEnd,unordered_map<NodeType,LenAsm> &info,map<NEdge,int> &r_edge_dict,unordered_map<NodeType,Nid> &nid_dict){
+    int asmCode = 0;
+    map<NEdge,int> h_edge_dict;
+    for(int asmNum : asmVec){
+        vector<vector<char> > oriMulti;
+        vector<vector<int> > nodeMulti;
+        //
+        vector<vector<int> > qPosMulti;
+        vector<string> cigarMulti;
+        vector<string> nameMulti;
+        
+        bool formR = true;
+        string formFile = upDir + "/form.info";
+        if(access(formFile.c_str(),F_OK) == 0){
+            formR = false;
+        }
+        queryDbPath(formR,asmNum,chrNum,sStart,sEnd,info,oriMulti,nodeMulti,qPosMulti,cigarMulti,nameMulti);
+        unordered_set<int> ndGroup;
+        for(size_t i =0; i < oriMulti.size(); ++i){
+            eAsmFind2(refSim,asmCode,oriMulti[i],nodeMulti[i],nid_dict,ndGroup,h_edge_dict);
+        }
+        //
+        ++asmCode;
+    }
+    //
+    hEdge2fig(nid_dict,h_edge_dict,r_edge_dict);
+}
+
+//--------------------------
+void GraphRange::readRefGene(string &ovFile,string &gDxFile,int chrNum,int sStart,int sEnd,unordered_set<NodeType> &retainID,unordered_map<NodeType,char> &exNode,vector<GeneNode> &refGeneNode,unordered_set<string> midExon){
     ifstream gf(ovFile.c_str());
     if(! gf){
-        cerr<<"Error: file open failed. "<<ovFile<<endl;
+        cerr<<"Warning: file open failed. "<<ovFile<<endl;
         return;
         //exit(1);
     }
     ifstream gdx(gDxFile.c_str());
     if(! gdx){
-        cerr<<"Error: file open failed. "<<gDxFile<<endl;
+        cerr<<"Warning: file open failed. "<<gDxFile<<endl;
         return;
         //exit(1);
     }
@@ -815,85 +1540,175 @@ void GraphRange::readRefGene(string &ovFile,string &gDxFile,int chrNum,int sStar
     }
     gdx.close();
     if(flag){
-        cerr<<"Error: nodes can't be found in the interval. "<<chrNum<<" : "<<sStart<<" - "<<sEnd<<endl;
+        cerr<<"Warning: annotation (GFF) can't be found in the interval. "<<chrNum<<" : "<<sStart<<" - "<<sEnd<<endl;
         return;
         //exit(1);
     }
     //
     gf.seekg(refOff,ios::beg);
-    int unitSize = sizeof(NodeGene);
+    int unitSize = sizeof(GeneNode);
+    unordered_map<NodeType,char>::iterator itl,itr;
+    string rnaName = "";
     for(int m = 0; m < rt; ++m){
-        NodeGene ndg;
+        GeneNode ndg;
         gf.read((char *)&ndg,unitSize);
-        if(retainID.find(ndg.node) != retainID.end()){
-            refNodeGene.push_back(ndg);
+        if(retainID.find(ndg.node1) != retainID.end() || retainID.find(ndg.node2) != retainID.end()){
+            refGeneNode.push_back(ndg);
+            //
+            if(ndg.type == 'E'){
+                rnaName = ndg.name;
+            }
+        }else{
+            if(ndg.type == 'E'){
+                string tRName = ndg.name;
+                if(tRName == rnaName){
+                    midExon.insert(rnaName);
+                }
+            }
+            //
+            if(ndg.type == 'G'){
+                itl = exNode.find(ndg.node1);
+                if(itl != exNode.end()){
+                    if(itl->second == '2'){
+                        itr = exNode.find(ndg.node2);
+                        if(itr != exNode.end()){
+                            if(itr->second == '1'){
+                                refGeneNode.push_back(ndg);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     gf.close();
 }
 
-void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sStart,int sEnd,int lastLen,float wPerK){
+/*
+    The bound of a searching region may be not the boundary of a gene
+*/
+void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK,unordered_map<NodeType,char> &exNode){
+
     unordered_set<NodeType> retainID;
     map<NodeType,float> rNodeStart;
     //
-    NodeType firId = 0,lastId = 0;
-    size_t lastPos = draw_pos.size() - 2;
+
     for(size_t i = 0; i < draw_pos.size(); i+=2){
         NodeType id = nnames[draw_node[i]["group"]];
         retainID.insert(id);
         rNodeStart.emplace(id,draw_pos[i]);
-        //
-        if(i == 0){
-            firId = id;
-        }else if(i == lastPos){
-            lastId = id;
-        }
     }
-    vector<NodeGene> refNodeGene;
-    readRefGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,retainID,refNodeGene);
-    if(refNodeGene.empty()){
+    //
+    // read range node gene -> refGeneNode
+    // sort refGeneNode
+    //
+    vector<GeneNode> refGeneNode;
+    unordered_set<string> midExon;
+    readRefGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,retainID,exNode,refGeneNode,midExon);    
+    if(refGeneNode.empty()){
         return;
-    }
+    }    
+    
+    // merge gene
+    //
     map<string,FigGene> geneMap;
     map<string,FigGene>::iterator it;
-    for(size_t i = 0; i < refNodeGene.size(); ++i){
-        string geneName = refNodeGene[i].name;
-        NodeType tid = refNodeGene[i].node;
-        float ndFigStart = rNodeStart[tid];
-        char tstrand = refNodeGene[i].strand;
-
-        it = geneMap.find(geneName);
-        if(it != geneMap.end()){
-            (it->second).end = ndFigStart + (refNodeGene[i].len - 1) * wPerK;
-            //
-            if(tstrand == '+'){
-                if(tid == lastId){
-                    if(refNodeGene[i].reStart + refNodeGene[i].len == lastLen){
-                        (it->second).margin = '1';
-                    }
-                }
-            }
-        }else{
-            float geneStart = ndFigStart + refNodeGene[i].reStart * wPerK;
-            float geneEnd = geneStart + (refNodeGene[i].len - 1) * wPerK;
-            int layer = refNodeGene[i].layer;
-            //char tstrand = refNodeGene[i].strand;
-            FigGene tf = {geneStart,geneEnd,layer,tstrand,'0'};
-            //
-            if(tstrand == '+'){
-                if(tid == lastId){
-                    if(refNodeGene[i].reStart + refNodeGene[i].len == lastLen){
-                        tf.margin = '1';
-                    }
-                }
+    
+    map<string,vector<FigEle> > exonMap;
+    map<string,vector<FigEle> >::iterator eit;
+    
+    map<string,vector<FigEle> > cdsMap;
+    //
+    uint8_t eFir = 1;
+    for(size_t i = 0; i < refGeneNode.size(); ++i){
+        string geneName = refGeneNode[i].name;
+        if(refGeneNode[i].type == 'G'){
+            FigGene tf;
+            tf.margin = '0';
+            tf.layer = refGeneNode[i].layer;
+            tf.strand = refGeneNode[i].strand;
+            if(rNodeStart.find(refGeneNode[i].node1) != rNodeStart.end()){
+                float ndFigStart = rNodeStart[refGeneNode[i].node1];
+                tf.start = ndFigStart + refGeneNode[i].reStart1 * wPerK;
             }else{
-                if(tid == firId){
-                    if(refNodeGene[i].reStart == 0){
-                        tf.margin = '2';
-                    }
+                float ndFigStart = draw_pos.front();
+                tf.start = ndFigStart;
+                if(refGeneNode[i].strand == '-'){
+                    tf.margin = '2';
                 }
             }
+            
+            if(rNodeStart.find(refGeneNode[i].node2) != rNodeStart.end()){
+                float ndFigStart = rNodeStart[refGeneNode[i].node2];
+                tf.end = ndFigStart + refGeneNode[i].reStart2 * wPerK;
+            }else{
+                tf.end = draw_pos.back();
+                if(refGeneNode[i].strand == '+'){
+                    tf.margin = '1';
+                }
+            }  
             geneMap.emplace(geneName,tf);
+        }else if(refGeneNode[i].type == 'E'){
+            FigEle te;
+            te.num = refGeneNode[i].num;
+            te.layer = refGeneNode[i].layer;
+            te.strand = refGeneNode[i].strand;
+            //
+            if(rNodeStart.find(refGeneNode[i].node1) != rNodeStart.end()){
+                float ndFigStart = rNodeStart[refGeneNode[i].node1];
+                te.start = ndFigStart + refGeneNode[i].reStart1 * wPerK;
+            }else{
+                float ndFigStart = draw_pos.front();
+                te.start = ndFigStart;
+            }
+            
+            if(rNodeStart.find(refGeneNode[i].node2) != rNodeStart.end()){
+                float ndFigStart = rNodeStart[refGeneNode[i].node2];
+                te.end = ndFigStart + refGeneNode[i].reStart2 * wPerK;
+            }else{
+                te.end = draw_pos.back();
+            }
+            //
+            eit = exonMap.find(geneName);
+            if(eit != exonMap.end()){
+                (eit->second).push_back(te);
+            }else{
+                vector<FigEle> tv;
+                tv.push_back(te);
+                //
+                exonMap.emplace(geneName,tv);
+            }
+            
+        }else{
+            FigEle te;
+            //te.num = refGeneNode[i].num;
+            te.layer = refGeneNode[i].layer;
+            te.strand = refGeneNode[i].strand;
+            //
+            if(rNodeStart.find(refGeneNode[i].node1) != rNodeStart.end()){
+                float ndFigStart = rNodeStart[refGeneNode[i].node1];
+                te.start = ndFigStart + refGeneNode[i].reStart1 * wPerK;
+            }else{
+                float ndFigStart = draw_pos.front();
+                te.start = ndFigStart;
+            }
+            
+            if(rNodeStart.find(refGeneNode[i].node2) != rNodeStart.end()){
+                float ndFigStart = rNodeStart[refGeneNode[i].node2];
+                te.end = ndFigStart + refGeneNode[i].reStart2 * wPerK;
+            }else{
+                te.end = draw_pos.back();
+            }
+            //
+            eit = cdsMap.find(geneName);
+            if(eit != cdsMap.end()){
+                (eit->second).push_back(te);
+            }else{
+                vector<FigEle> tv;
+                tv.push_back(te);
+                //
+                cdsMap.emplace(geneName,tv);
+            }
         }
     }
     for(auto &tg : geneMap){
@@ -905,16 +1720,281 @@ void GraphRange::getFigGene(string &bwGeneFile,string &gDxFile,int chrNum,int sS
         strandVec.push_back(tg.second.strand);
         mgFlagVec.push_back(tg.second.margin);
     }
+    
+    for(auto &te : exonMap){
+        rnaVec.push_back(te.first);
+        for(auto &nd : te.second){
+            ndExonPos.push_back(nd.start);
+            ndExonPos.push_back(nd.end);
+            eLayerVec.push_back(nd.layer);
+            eStrandVec.push_back(nd.strand);
+        }
+        eNumVec.push_back(te.second.size());
+        //
+        if(te.second.front().num != eFir){
+            if(midExon.find(te.first) != midExon.end()){
+                eFlagVec.push_back('3');
+            }else{
+                eFlagVec.push_back('2');
+            }
+        }else{
+            if(midExon.find(te.first) != midExon.end()){
+                eFlagVec.push_back('1');
+            }else{
+                eFlagVec.push_back('0');
+            }
+        }
+    }
+    
+    for(auto &tc : cdsMap){
+        cdsVec.push_back(tc.first);
+        for(auto &nd : tc.second){
+            ndCDSPos.push_back(nd.start);
+            ndCDSPos.push_back(nd.end);
+            cLayerVec.push_back(nd.layer);
+        }
+        cNumVec.push_back(tc.second.size());
+    }
 }
-//
-void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim){
+//------------------
+
+void GraphRange::readRefBed(string &ovFile,string &gDxFile,int chrNum,int sStart,int sEnd,unordered_set<NodeType> &retainID,unordered_map<NodeType,char> &exNode,vector<BedNode> &refBedNode){
+    ifstream gf(ovFile.c_str());
+    if(! gf){
+        cerr<<"Warning: file open failed. "<<ovFile<<endl;
+        return;
+        //exit(1);
+    }
+    ifstream gdx(gDxFile.c_str());
+    if(! gdx){
+        cerr<<"Warning: file open failed. "<<gDxFile<<endl;
+        return;
+        //exit(1);
+    }
+    //
+    int nchr = 0;
+    int intSize = sizeof(int);
+    gdx.read((char *)&nchr,intSize);
+    int refChr = -1;
+    bool findChr = false;
+    //
+    ChrRange crRange;
+    int crSize = sizeof(ChrRange);
+    for(int x = 0; x < nchr; ++x){
+        gdx.read((char *)&refChr,intSize);
+        gdx.read((char *)&crRange,crSize);
+        if(refChr == chrNum){
+            findChr = true;
+            break;
+        }
+    }
+    
+    long long refOff = 0LL;
+    int rt = 0;
+    bool flag = true;
+    int oneSize = sizeof(OneRange);
+
+    if(findChr){
+        gdx.clear();
+        gdx.seekg(crRange.rByte,ios::beg);
+        for(int k = 0; k < crRange.ranNum; ++k){
+            OneRange tRange;
+            gdx.read((char *)&tRange,oneSize);
+            if(tRange.ranStart <= sStart){
+                if(tRange.ranEnd >= sStart){
+                    if(flag){
+                        refOff = tRange.offByte;
+                        flag = false;
+                    }
+                    rt += tRange.ranNum;                   
+                }
+                
+            }else{
+                if(tRange.ranStart <= sEnd){
+                    if(flag){
+                        refOff = tRange.offByte;
+                        flag = false;
+                    }
+                    rt += tRange.ranNum;        
+                }else{
+                    break;
+                }
+                
+            }
+        }
+    }
+    gdx.close();
+    if(flag){
+        cerr<<"Warning: annotation (BED) can't be found in the interval. "<<chrNum<<" : "<<sStart<<" - "<<sEnd<<endl;
+        return;
+        //exit(1);
+    }
+    //
+    gf.seekg(refOff,ios::beg);
+    int unitSize = sizeof(BedNode);
+    unordered_map<NodeType,char>::iterator itl,itr;
+    for(int m = 0; m < rt; ++m){
+        BedNode ndg;
+        gf.read((char *)&ndg,unitSize);      
+        if(retainID.find(ndg.node1) != retainID.end() || retainID.find(ndg.node2) != retainID.end()){
+            refBedNode.push_back(ndg);
+        }else{
+            itl = exNode.find(ndg.node1);
+            if(itl != exNode.end()){
+                if(itl->second == '2'){
+                    itr = exNode.find(ndg.node2);
+                    if(itr != exNode.end()){
+                        if(itr->second == '1'){
+                            refBedNode.push_back(ndg);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    gf.close();
+}
+
+// #nColumns layer   track_name  description
+/*
+   ncol: 3 --> (chr,start,end); 4 --> (chr,start,end,name); 5 --> (chr,start,end,name,score); 6 --> (chr,start,end,name,score,strand)
+*/
+void GraphRange::getFigBed(string &tkDesFile,string &bwGeneFile,string &gDxFile,int chrNum,int sStart,int sEnd,float wPerK,unordered_map<NodeType,char> &exNode){
+    ifstream kfh(tkDesFile.c_str());
+    if(! kfh){
+        cerr<<"Warning: file open failed. "<<tkDesFile<<endl;
+        return;
+    }
+    string line;
+    while(getline(kfh,line)){
+        int fir = line.find("\t");
+        int sec = line.find("\t",fir+1);
+        int thi = line.find("\t",sec+1);
+        int ncol = atoi(line.substr(0,fir).c_str());
+        int cum = atoi(line.substr(fir+1,sec-fir-1).c_str());
+        string name = line.substr(sec+1,thi-sec-1);
+        string des = line.substr(thi+1);
+        tkNameVec.push_back(name);
+        tkDesVec.push_back(des);
+        tkColVec.push_back(ncol);
+        tkCumVec.push_back(cum);
+    }
+    kfh.close();
+    //
+    unordered_set<NodeType> retainID;
+    map<NodeType,float> rNodeStart;
+    //
+    for(size_t i = 0; i < draw_pos.size(); i+=2){
+        NodeType id = nnames[draw_node[i]["group"]];
+        retainID.insert(id);
+        rNodeStart.emplace(id,draw_pos[i]);
+    }
+    //
+    vector<BedNode> refBedNode;   
+    readRefBed(bwGeneFile,gDxFile,chrNum,sStart,sEnd,retainID,exNode,refBedNode);    
+    if(refBedNode.empty()){
+        return;
+    }
+    //
+    map<int,vector<FigBed> > geneMap;
+    for(size_t j = 0; j < refBedNode.size(); ++j){
+        FigBed fb;
+        int layer = refBedNode[j].layer;
+        fb.name = refBedNode[j].name;
+        fb.strand = refBedNode[j].strand;
+        fb.score = refBedNode[j].score;
+        if(rNodeStart.find(refBedNode[j].node1) != rNodeStart.end()){
+            float ndFigStart = rNodeStart[refBedNode[j].node1];
+            fb.start = ndFigStart + refBedNode[j].reStart1 * wPerK;
+        }else{
+            float ndFigStart = draw_pos.front();
+            fb.start = ndFigStart;
+        }
+        
+        if(rNodeStart.find(refBedNode[j].node2) != rNodeStart.end()){
+            float ndFigStart = rNodeStart[refBedNode[j].node2];
+            fb.end = ndFigStart + refBedNode[j].reStart2 * wPerK;
+        }else{
+            fb.end = draw_pos.back();
+        }
+        //
+        if(geneMap.find(layer) != geneMap.end()){
+            geneMap[layer].push_back(fb);
+        }else{
+            vector<FigBed> vec{fb};
+            geneMap.emplace(layer,vec);
+        }
+    }
+    //
+    int layStart = 1;
+    // tnum --> number of items for each track
+    for(size_t k = 0; k < tkColVec.size(); ++k){
+        int tnum = 0;
+        if(tkColVec[k] == 3){
+            // start end
+            for(int x = layStart; x <= tkCumVec[k]; ++x){
+                for(auto &gm : geneMap[x]){
+                    rBedPos.push_back(gm.start);
+                    rBedPos.push_back(gm.end);
+                    rBedLayer.push_back(x);
+                }
+                tnum += geneMap[x].size();
+            }
+        }else if(tkColVec[k] == 4){
+            // start end name
+            for(int x = layStart; x <= tkCumVec[k]; ++x){
+                for(auto &gm : geneMap[x]){
+                    rBedPos.push_back(gm.start);
+                    rBedPos.push_back(gm.end);
+                    rBedLayer.push_back(x);
+                    //
+                    rBedName.push_back(gm.name);
+                }
+                tnum += geneMap[x].size();
+            }
+        }else if(tkColVec[k] == 5){
+            // start end (name; not store for the present) score
+            for(int x = layStart; x <= tkCumVec[k]; ++x){
+                for(auto &gm : geneMap[x]){
+                    rBedPos.push_back(gm.start);
+                    rBedPos.push_back(gm.end);
+                    rBedLayer.push_back(x);
+                    //
+                    rBedName.push_back(gm.name);
+                    rBedScore.push_back(gm.score);
+                }
+                tnum += geneMap[x].size();
+            }
+        }else{
+            // start end (name; not store for the present) score  strand
+            for(int x = layStart; x <= tkCumVec[k]; ++x){
+                for(auto &gm : geneMap[x]){
+                    rBedPos.push_back(gm.start);
+                    rBedPos.push_back(gm.end);
+                    rBedLayer.push_back(x);
+                    //
+                    rBedName.push_back(gm.name);
+                    rBedScore.push_back(gm.score);
+                    rBedStrand.push_back(gm.strand);
+                }
+                tnum += geneMap[x].size();
+            }
+        }
+        //
+        tkItem.push_back(tnum);
+        layStart = tkCumVec[k] + 1;
+    }
+}
+
+//-----------------
+void GraphRange::formatGraph(string &asmb,string &sChr,int sStart,int sEnd,int ex,int wStart,int wWidth,int wCut,int wY,int queryDep,int varLen,bool sim,bool refSim){
     unordered_map<NodeType,vector<ENode> > iedge;
     unordered_map<NodeType,vector<ENode> > oedge;
-    
     vector<NodeType> rangeNode;
-    unordered_set<NodeType> exNode;
-    unordered_map<NodeType,LenAss> info;
+    unordered_map<NodeType,char> exNode;
+    unordered_map<NodeType,LenAsm> info;
     int realLen = 0;
+    int realStart = 0;
     //
     int chrNum = -1;
     if(indexFlag == 1){
@@ -924,7 +2004,7 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             return;
             //exit(1);
         }
-        getExNode(chrNum,sStart,sEnd,ex,rangeNode,exNode,info,realLen);
+        getExNode(chrNum,sStart,sEnd,ex,rangeNode,exNode,info,realLen,realStart);
         parseIndex(chrNum,sStart,sEnd,iedge,oedge);
     }else{
         parseNode(sChr,sStart,sEnd,ex,rangeNode,exNode,info,realLen);
@@ -932,11 +2012,22 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
     }
     //
     int rcount = rangeNode.size();
-    float wPerK = (float)wWidth / (realLen + (rcount-1) * wCut);
-    float x_wCut = wPerK * wCut;   
-    int gNum = 0;
-    int iNum = 0;
+    int baseWidth = wWidth - 80 * (rcount-1);
+    if(baseWidth > 0){
+        int spLimit = 80 * realLen / baseWidth + 1;
+        if(wCut > spLimit){
+            wCut = spLimit;
+        }
+    }
     
+    float wPerK = (float)wWidth / (realLen + (rcount-1) * wCut);
+    //
+    float x_wCut = wPerK * wCut;   
+    figScale = x_wCut;
+    //
+    int gNum = 0;
+    int iNum = 0;    
+    //
     Ndic firNode;
     firNode.insert(Ndic::value_type("id",0));
     firNode.insert(Ndic::value_type("group",0));
@@ -960,7 +2051,6 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
     unordered_map<NodeType,std::vector<ENode> >::iterator it,itx;
     unordered_set<NodeType> subMap;
     int mnx = nx - 1;
-    
     if(sim){
         int point = 0;
         int lpoint = 0,rpoint = 0;
@@ -979,7 +2069,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                 char lstMark = '2',rstMark = '2';
                 char lOri = 'o',rOri = 'o';
 
+                
                 int maxLen = 0;
+                //bool flag = true;
                 for(ENode &o_node : it->second){
                     if(exNode.find(o_node.node) == exNode.end()){
                         if(subMap.find(o_node.node) == subMap.end()){
@@ -992,216 +2084,247 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                             //
                             sign.push_back(o_node.mark);
                         }
+                        //else{
+                        //    flag = false;
+                        //    break;
+                        //}
                     }
                 }
-                if(maxLen < varLen){
-                    if(! tNref.empty()){
-                        size_t i = 0;
-                        int aMaxLen = 0;
-                        int preDeep = 1;
-                        
-                        unordered_set<NodeType> tset;
-                        while(i < tNref.size()){
-                            if(deep[i] != preDeep){
-                                maxLen += aMaxLen;
-                                if(maxLen >= varLen){
-                                    break;
-                                }
-                                //
-                                aMaxLen = 0;
-                            }
-                            if(deep[i] > queryDep){
-                                break;   
-                            }
+                //
+                //if(flag){
+                    if(maxLen < varLen){
+                        if(! tNref.empty()){
+                            size_t i = 0;
+                            int aMaxLen = 0;
+                            int preDeep = 1;
                             
-                            it = oedge.find(tNref[i]);
-                            itx = iedge.find(tNref[i]);
-                            if(it != oedge.end()){
-                                for(ENode &to_node : it->second){
-                                    if(exNode.find(to_node.node) == exNode.end()){
-                                        if(tset.find(to_node.node) == tset.end()){
-                                            tNref.push_back(to_node.node);
-                                            deep.push_back(deep[i]+1);
-                                            tset.insert(to_node.node);
-                                            //
-                                            if(info[to_node.node].len > aMaxLen){
-                                                aMaxLen = info[to_node.node].len;
-                                            }
-                                            //
-                                            sign.push_back(sign[i]);
-                                        }
-                                    }else{
-                                        if(range_set.find(to_node.node) != range_set.end()){
-                                            int tpoint = range_set[to_node.node];
-                                            if(tpoint > rpoint){
-                                                rpoint = tpoint;
-                                                //
-                                                rnrMark = to_node.mark;
-                                                rstMark = sign[i];
-                                                rOri = 'o';
-                                            }else{
-                                                if(tpoint < lpoint){
-                                                    lpoint = tpoint;
-                                                    //
-                                                    lnrMark = to_node.mark;
-                                                    lstMark = sign[i];
-                                                    lOri = 'o';
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            //
-                            if(itx != iedge.end()){
-                                for(ENode &to_node : itx->second){
-                                    if(exNode.find(to_node.node) == exNode.end()){
-                                        if(tset.find(to_node.node) == tset.end()){
-                                            tNref.push_back(to_node.node);
-                                            deep.push_back(deep[i]+1);
-                                            tset.insert(to_node.node);
-                                            //
-                                            if(info[to_node.node].len > aMaxLen){
-                                                aMaxLen = info[to_node.node].len;
-                                            }
-                                            //
-                                            sign.push_back(sign[i]);
-                                        }
-                                    }else{
-                                        if(range_set.find(to_node.node) != range_set.end()){
-                                            int tpoint = range_set[to_node.node];
-                                            if(tpoint > rpoint){
-                                                rpoint = tpoint;
-                                                rnrMark = to_node.mark;
-                                                rstMark = sign[i];
-                                                rOri = 'i';
-                                            }else{
-                                                if(tpoint < lpoint){
-                                                    lpoint = tpoint;
-                                                    //
-                                                    lnrMark = to_node.mark;
-                                                    lstMark = sign[i];
-                                                    lOri = 'i';
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            //
-                            preDeep = deep[i];
-                            ++i;
-                        }
-                        //
-                        maxLen += aMaxLen;
-                    }
-                }
-                
-                if(maxLen < varLen){
-                    int rlen = 0,llen = 0;
-                    bool inv = false;
-                    int lStart = lpoint + 1,rEnd = rpoint;
-                    if(point > lpoint){
-                        
-                        if(lstMark < '4'){
-                            inv = true;
-                        }else{
-                            if(lOri == 'o'){
-                                if(lnrMark == '2' || lnrMark == '4'){
-                                    lStart = lpoint;
-                                }
-                            }else{
-                                if(lnrMark == '4' || lnrMark == '5'){
-                                    lStart = lpoint;
-                                }
-                            }
-                        }
-
-                        if(! inv){
-                            for(int j = lStart; j < point; ++j){
-                                llen += info[rangeNode[j]].len;
-                            }
-                            if(llen < varLen){
-                                if(rpoint > point){
-                                    if(rstMark < '4'){
-                                        if(rOri == 'o'){
-                                            if(rnrMark == '3' || rnrMark == '5'){
-                                                rEnd = rpoint + 1;
-                                            }
-                                        }else{
-                                            if(rnrMark == '2' || rnrMark == '3'){
-                                                rEnd = rpoint + 1;
-                                            }
-                                        }
-                                    }else{
-                                        inv = true;
+                            unordered_set<NodeType> tset;
+                            while(i < tNref.size()){
+                                if(deep[i] != preDeep){
+                                    maxLen += aMaxLen;
+                                    if(maxLen >= varLen){
+                                        break;
                                     }
                                     //
-                                    if(! inv){
-                                        for(int j = point + 1; j < rEnd; ++j){
-                                            rlen += info[rangeNode[j]].len;
-                                        }
-                                        if(rlen < varLen){
-                                            for(auto &xnode : tNref){
-                                                subMap.insert(xnode);
+                                    aMaxLen = 0;
+                                }
+                                if(deep[i] > queryDep){
+                                    break;   
+                                }
+                                
+                                it = oedge.find(tNref[i]);
+                                itx = iedge.find(tNref[i]); 
+                                if(it != oedge.end()){
+                                    for(ENode &to_node : it->second){
+                                        if(exNode.find(to_node.node) == exNode.end()){
+                                            //if(subMap.find(to_node.node) == subMap.end()){
+                                            if(tset.find(to_node.node) == tset.end()){
+                                                tNref.push_back(to_node.node);
+                                                deep.push_back(deep[i]+1);
+                                                tset.insert(to_node.node);
+                                                //
+                                                if(info[to_node.node].len > aMaxLen){
+                                                    aMaxLen = info[to_node.node].len;
+                                                }
+                                                //
+                                                sign.push_back(sign[i]);
+                                            }
+                                            //}
+                                        }else{
+                                            if(range_set.find(to_node.node) != range_set.end()){
+                                                int tpoint = range_set[to_node.node];
+                                                if(tpoint > rpoint){
+                                                    rpoint = tpoint;
+                                                    //
+                                                    rnrMark = to_node.mark;
+                                                    rstMark = sign[i];
+                                                    rOri = 'o';
+                                                }else{
+                                                    if(tpoint < lpoint){
+                                                        lpoint = tpoint;
+                                                        //
+                                                        lnrMark = to_node.mark;
+                                                        lstMark = sign[i];
+                                                        lOri = 'o';
+                                                    }
+                                                }
+                                                
                                             }
                                         }
                                     }
-                                }else{
-                                    for(auto &xnode : tNref){
-                                        subMap.insert(xnode);
+                                }
+                                //
+                                if(itx != iedge.end()){
+                                    for(ENode &to_node : itx->second){
+                                        if(exNode.find(to_node.node) == exNode.end()){
+                                            //if(subMap.find(to_node.node) == subMap.end()){
+                                            if(tset.find(to_node.node) == tset.end()){
+                                                tNref.push_back(to_node.node);
+                                                deep.push_back(deep[i]+1);
+                                                tset.insert(to_node.node);
+                                                //
+                                                if(info[to_node.node].len > aMaxLen){
+                                                    aMaxLen = info[to_node.node].len;
+                                                }
+                                                //
+                                                sign.push_back(sign[i]);
+                                            }
+                                            //}
+                                        }else{
+                                            if(range_set.find(to_node.node) != range_set.end()){
+                                                int tpoint = range_set[to_node.node];
+                                                if(tpoint > rpoint){
+                                                    rpoint = tpoint;
+                                                    rnrMark = to_node.mark;
+                                                    rstMark = sign[i];
+                                                    rOri = 'i';
+                                                }else{
+                                                    if(tpoint < lpoint){
+                                                        lpoint = tpoint;
+                                                        //
+                                                        lnrMark = to_node.mark;
+                                                        lstMark = sign[i];
+                                                        lOri = 'i';
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    }else{
-                        if(rpoint > point){
-                            if(rstMark < '4'){
-                                if(rOri == 'o'){
-                                    if(rnrMark == '3' || rnrMark == '5'){
-                                        rEnd = rpoint + 1;
-                                    }
-                                }else{
-                                    if(rnrMark == '2' || rnrMark == '3'){
-                                        rEnd = rpoint + 1;
-                                    }
-                                }
-                            }else{
-                                inv = true;
+                                //
+                                preDeep = deep[i];
+                                ++i;
                             }
                             //
-                            if(! inv){
-                                for(int j = point + 1; j < rEnd; ++j){
-                                    rlen += info[rangeNode[j]].len;
+                            maxLen += aMaxLen;
+                        }
+                    }
+                
+                    //
+                    //if(rpoint > lpoint); remove end point
+                    if(maxLen < varLen){
+                        int rlen = 0,llen = 0;
+                        bool inv = false;
+                        int lStart = lpoint + 1,rEnd = rpoint;
+                        if(point > lpoint){
+                            
+                            if(lstMark < '4'){
+                                // + out
+                                inv = true;
+                            }else{
+                                if(lOri == 'o'){
+                                    if(lnrMark == '2' || lnrMark == '4'){
+                                        lStart = lpoint;
+                                    }
+                                }else{
+                                    if(lnrMark == '4' || lnrMark == '5'){
+                                        lStart = lpoint;
+                                    }
                                 }
-                                if(rlen < varLen){
-                                    for(auto &xnode : tNref){
-                                        subMap.insert(xnode);
+                            }
+
+                            if(! inv){
+                                for(int j = lStart; j < point; ++j){
+                                    llen += info[rangeNode[j]].len;
+                                }
+                                if(llen < varLen){
+                                    if(rpoint > point){
+                                        if(rstMark < '4'){
+                                            if(rOri == 'o'){
+                                                // start -> end(-)
+                                                if(rnrMark == '3' || rnrMark == '5'){
+                                                    rEnd = rpoint + 1;
+                                                }
+                                            }else{
+                                                // start(+) -> end
+                                                if(rnrMark == '2' || rnrMark == '3'){
+                                                    rEnd = rpoint + 1;
+                                                }
+                                            }
+                                        }else{
+                                            // - out
+                                            inv = true;
+                                        }
+                                        //
+                                        if(! inv){
+                                            for(int j = point + 1; j < rEnd; ++j){
+                                                rlen += info[rangeNode[j]].len;
+                                            }
+                                            if(rlen < varLen){
+                                                for(auto &xnode : tNref){
+                                                    subMap.insert(xnode);
+                                                }
+                                            }
+                                        }
+                                    }else{
+                                        for(auto &xnode : tNref){
+                                            subMap.insert(xnode);
+                                        }
+                                    }
+                                }
+                            }
+                        }else{
+                            if(rpoint > point){
+                                if(rstMark < '4'){
+                                    if(rOri == 'o'){
+                                        if(rnrMark == '3' || rnrMark == '5'){
+                                            rEnd = rpoint + 1;
+                                        }
+                                    }else{
+                                        if(rnrMark == '2' || rnrMark == '3'){
+                                            rEnd = rpoint + 1;
+                                        }
+                                    }
+                                }else{
+                                    inv = true;
+                                }
+                                //
+                                if(! inv){
+                                    for(int j = point + 1; j < rEnd; ++j){
+                                        rlen += info[rangeNode[j]].len;
+                                    }
+                                    if(rlen < varLen){
+                                        for(auto &xnode : tNref){
+                                            subMap.insert(xnode);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
+                //}
             }
-
-            ++point;
+            //
+            //if(rpoint == point){
+                ++point;
+            //}else{
+            //    point = rpoint;   
+            //}
         }
     }
-    
+    //---------------------------------
+    float pTickPos = wStart - 100;
+    float curStart = wStart;
+    float curEnd = wStart;
+    int preCum = 0;
+    int refLen = 0;
+    //----------------------------------
     NodeType simNode = rangeNode.front();
     bool preOte = false;
-    for(NodeType &tnode: rangeNode){
-        nnames.push_back(tnode);
+    for(NodeType &tnode: rangeNode){    
         int node_len = info[tnode].len;
-        genome.push_back(info[tnode].ass);
+        nnames.push_back(tnode);
+        genome.push_back(info[tnode].asmb);
+        //
+        refLen += node_len;
         //
         it = oedge.find(tnode);
         bool emp1 = true,emp2 = true;
         bool alink1 = true,alink2 = true;
-        if(it != oedge.end()){
-            vector<NodeType> tNref;
-            vector<int> deep;
+        //
+        vector<NodeType> tNref;
+        vector<int> deep;
+        if(it != oedge.end()){   
             for(ENode &o_node : it->second){
                 if(exNode.find(o_node.node) != exNode.end()){
                     if(range_set.find(o_node.node) != range_set.end()){
@@ -1247,8 +2370,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                         
                         tNref.push_back(o_node.node);
                         deep.push_back(0);
-                        nRefNode.insert(o_node.node);
+                        nRefNode.insert(o_node.node);                        
                     }
+                    //
                     NEdge sym = {tnode,o_node.node,o_node.mark};
                     r_edge_dict.emplace(sym,2);
                     emp1 = false;
@@ -1256,62 +2380,9 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                     alink1 = false;
                 }
             }
-            
-            if(! tNref.empty()){
-                size_t i = 0;
-                while(i < tNref.size()){
-                    if(deep[i] > queryDep){
-                        break;   
-                    }
-                    
-                    it = oedge.find(tNref[i]);
-                    if(it != oedge.end()){
-                            for(ENode &to_node : it->second){
-                                if(exNode.find(to_node.node) != exNode.end()){
-                                    if(range_set.find(to_node.node) != range_set.end()){
-                                        NEdge sym = {tNref[i],to_node.node,to_node.mark};
-                                        r_edge_dict.emplace(sym,2);
-                                    }
-                                }else{
-                                    if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                        tNref.push_back(to_node.node);
-                                        deep.push_back(deep[i]+1);
-                                        nRefNode.insert(to_node.node);
-                                    }
-                                    NEdge sym = {tNref[i],to_node.node,to_node.mark};
-                                    r_edge_dict.emplace(sym,2);
-                                }
-                            }
-                    }
-
-                    it = iedge.find(tNref[i]);
-                    if(it != iedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {to_node.node,tNref[i],to_node.mark};
-                                    r_edge_dict.emplace(sym,2);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
-                                NEdge sym = {to_node.node,tNref[i],to_node.mark};
-                                r_edge_dict.emplace(sym,2);
-                            }
-                        }
-                    }
-                    i += 1;
-                }
-            }
         }
-        //
         it = iedge.find(tnode);
         if(it != iedge.end()){
-            vector<int> tNref;
-            vector<int> deep;
             for(ENode &o_node : it->second){
                 if(exNode.find(o_node.node) != exNode.end()){
                     if(sim){
@@ -1345,79 +2416,88 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                                 }
                                 
                                 if(flag){
-                                    r_edge_dict.emplace(sym,2);
+                                    //NEdge sym = {o_node.node,tnode,o_node.mark};
+                                    //if(r_edge_dict.find(sym) == r_edge_dict.end()){
+                                        r_edge_dict.emplace(sym,2);
+                                    //}
                                     emp2 = false;
                                 }
                             }
                         }
                     }
                 }else{
-                        if(nRefNode.find(o_node.node) == nRefNode.end()){
-                            if(sim){
-                                if(subMap.find(o_node.node) != subMap.end()){
-                                    continue;
-                                }
+                    if(nRefNode.find(o_node.node) == nRefNode.end()){
+                        if(sim){
+                            if(subMap.find(o_node.node) != subMap.end()){
+                                continue;
                             }
-                            tNref.push_back(o_node.node);
-                            deep.push_back(0);
-                            nRefNode.insert(o_node.node);
                         }
-                        emp2 = false;
-                        NEdge sym = {o_node.node,tnode,o_node.mark};
-                        r_edge_dict.emplace(sym,2);
                         //
-                        alink2 = false;
-                    
+                        tNref.push_back(o_node.node);
+                        deep.push_back(0);
+                        nRefNode.insert(o_node.node);
+                        //vRefNode.push_back(o_node.node);
+                    }
+                    //
+                    emp2 = false;
+                    //
+                    NEdge sym = {o_node.node,tnode,o_node.mark};
+                    r_edge_dict.emplace(sym,2);
+                    //
+                    alink2 = false;
                 }
             }
+        }
             
-            if(! tNref.empty()){
-                size_t i = 0;
-                while(i < tNref.size()){
-                    if(deep[i] > queryDep){
-                        break;   
-                    }
-                    it = oedge.find(tNref[i]);                    
-                    if(it != oedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {tNref[i],to_node.node,to_node.mark};
-                                    r_edge_dict.emplace(sym,2);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
+        if(! tNref.empty()){
+            size_t i = 0;
+            while(i < tNref.size()){             
+                if(deep[i] > queryDep){
+                    break;   
+                }
+                
+                it = oedge.find(tNref[i]);
+                if(it != oedge.end()){
+                    for(ENode &to_node : it->second){
+                        if(exNode.find(to_node.node) != exNode.end()){
+                            if(range_set.find(to_node.node) != range_set.end()){
                                 NEdge sym = {tNref[i],to_node.node,to_node.mark};
                                 r_edge_dict.emplace(sym,2);
                             }
+                        }else{
+                            if(nRefNode.find(to_node.node) == nRefNode.end()){
+                                tNref.push_back(to_node.node);
+                                deep.push_back(deep[i]+1);
+                                nRefNode.insert(to_node.node);
+                                //vRefNode.push_back(to_node.node);
+                            }
+                            NEdge sym = {tNref[i],to_node.node,to_node.mark};
+                            r_edge_dict.emplace(sym,2);
                         }
-                    }   
-                    //
-                    it = iedge.find(tNref[i]);
-                    if(it != iedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {to_node.node,tNref[i],to_node.mark};
-                                    r_edge_dict.emplace(sym,2);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
+                    }
+                }
+
+                it = iedge.find(tNref[i]);
+                if(it != iedge.end()){
+                    for(ENode &to_node : it->second){
+                        if(exNode.find(to_node.node) != exNode.end()){
+                            if(range_set.find(to_node.node) != range_set.end()){
                                 NEdge sym = {to_node.node,tNref[i],to_node.mark};
                                 r_edge_dict.emplace(sym,2);
                             }
+                        }else{
+                            if(nRefNode.find(to_node.node) == nRefNode.end()){
+                                tNref.push_back(to_node.node);
+                                deep.push_back(deep[i]+1);
+                                nRefNode.insert(to_node.node);
+                                //vRefNode.push_back(to_node.node);
+                            }
+                            NEdge sym = {to_node.node,tNref[i],to_node.mark};
+                            r_edge_dict.emplace(sym,2);
                         }
                     }
-                    i += 1;
                 }
+                i += 1;
             }
         }
         //
@@ -1440,15 +2520,22 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                     curRes = true;
                 }
             }
+            // alink1 && alink2 => has no non-ref link
             //
             if(gNum > 0){
                 node_pre += x_wCut;
+                //
+                curStart = node_pre;
+                //
+                //if(! dRef || (gNum == mnx)){
                 if(curRes){
                     iNum += 1;
                     //
                     Ndic tdNode;
                     tdNode.insert(Ndic::value_type("id",iNum));
                     tdNode.insert(Ndic::value_type("group",gNum));
+                    //tdNode.insert(Ndic::value_type("fx",node_pre));
+                    //tdNode.insert(Ndic::value_type("fy",wY));
                     draw_pos.push_back(node_pre);
                     draw_node.push_back(tdNode);
                     
@@ -1473,7 +2560,11 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             
             float trans = node_len * wPerK;
             node_pre += trans;
-            if(curRes){
+            //
+            curEnd = node_pre;
+            //
+            //if(! dRef || (gNum == 0) || (gNum == mnx)){
+            if(curRes){    
                 iNum += 1;
                 //
                 Ndic tdNode;
@@ -1491,21 +2582,66 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                 e_nid = iNum;
                 Nid tnid = {s_nid,e_nid,gNum};            
                 nid_dict.emplace(tnode,tnid);
+                //
+                
             }
+            //else{
+            //    refSkip.insert(tnode);
+            //}
             gNum += 1;
             pre_node = tnode;
             preOte = linkOte;
+            //----------------------------
+            if(curStart - pTickPos >= 80.0f){
+                int tValue = preCum + realStart;
+                tickValue.push_back(preCum + realStart);
+                tickPos.push_back(curStart);
+                pTickPos = curStart;
+                float tPos = curStart;
+                while(tPos <= curEnd){            
+                    tPos += 80.0f;
+                    if(tPos <= curEnd){
+                        tValue += int(80.0f / (curEnd - curStart) * node_len);
+                        tickValue.push_back(tValue);
+                        tickPos.push_back(tPos);
+                        pTickPos = tPos;
+                    }
+                }
+            }else{
+                if(curEnd - pTickPos >= 80){
+                    float tPos = pTickPos + 80;
+                    int tValue = int((tPos - curStart) / (curEnd - curStart) * node_len) + preCum + realStart - 1;
+                    tickValue.push_back(tValue);
+                    tickPos.push_back(tPos);
+                    pTickPos = tPos;
+                    while(tPos <= curEnd){            
+                        tPos += 80;
+                        if(tPos <= curEnd){
+                            tValue += int(80 / (curEnd - curStart) * node_len);
+                            tickValue.push_back(tValue);
+                            tickPos.push_back(tPos);
+                            pTickPos = tPos;
+                        }
+                    }
+                }    
+            }
+            //---------------------------------
         }else{
             if(gNum > 0){
                 node_pre += x_wCut;
+                //
+                curStart = node_pre;
+                //
                 iNum += 1;
-
+                
                 Ndic tdNode;
                 tdNode.insert(Ndic::value_type("id",iNum));
                 tdNode.insert(Ndic::value_type("group",gNum));
+                //tdNode.insert(Ndic::value_type("fx",node_pre));
+                //tdNode.insert(Ndic::value_type("fy",wY));
                 draw_pos.push_back(node_pre);
                 draw_node.push_back(tdNode);
-
+                
                 map<string,int> tdEdge;
                 tdEdge.insert(map<string,int>::value_type("source",iNum-1));
                 tdEdge.insert(map<string,int>::value_type("target",iNum));
@@ -1519,18 +2655,20 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
                     r_edge_dict.emplace(tsym,0);
                 }
             }
-        
-        
+            
             float trans = node_len * wPerK;
             node_pre += trans;
+            //
+            curEnd = node_pre;
+            //
             iNum += 1;
-
+            
             Ndic tdNode;
             tdNode.insert(Ndic::value_type("id",iNum));
             tdNode.insert(Ndic::value_type("group",gNum));
             draw_pos.push_back(node_pre);
             draw_node.push_back(tdNode);
-
+            
             map<string,int> tdEdge;
             tdEdge.insert(map<string,int>::value_type("source",iNum-1));
             tdEdge.insert(map<string,int>::value_type("target",iNum));
@@ -1540,16 +2678,53 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             e_nid = iNum;
             Nid tnid = {s_nid,e_nid,gNum};
             nid_dict.emplace(tnode,tnid);
-
+            
             gNum += 1;
             pre_node = tnode;
+            //----------------------------
+            if(curStart - pTickPos >= 80.0f){
+                int tValue = preCum + realStart;
+                tickValue.push_back(preCum + realStart);
+                tickPos.push_back(curStart);
+                pTickPos = curStart;
+                float tPos = curStart;
+                while(tPos <= curEnd){            
+                    tPos += 80.0f;
+                    if(tPos <= curEnd){
+                        tValue += int(80.0f / (curEnd - curStart) * node_len);
+                        tickValue.push_back(tValue);
+                        tickPos.push_back(tPos);
+                        pTickPos = tPos;
+                    }
+                }
+            }else{
+                if(curEnd - pTickPos >= 80){
+                    float tPos = pTickPos + 80;
+                    int tValue = int((tPos - curStart) / (curEnd - curStart) * node_len) + preCum + realStart - 1;
+                    tickValue.push_back(tValue);
+                    tickPos.push_back(tPos);
+                    pTickPos = tPos;
+                    while(tPos <= curEnd){            
+                        tPos += 80;
+                        if(tPos <= curEnd){
+                            tValue += int(80 / (curEnd - curStart) * node_len);
+                            tickValue.push_back(tValue);
+                            tickPos.push_back(tPos);
+                            pTickPos = tPos;
+                        }
+                    }
+                }    
+            }
+            //---------------------------------
         }
-    }
-    
-    for(auto &nk : nRefNode){
+        //
+        preCum = refLen;
+    }   
+    //-----------------------------
+    for(auto &nk : nRefNode){       
         nnames.push_back(nk);
         int node_len = info[nk].len;
-        genome.push_back(info[nk].ass);
+        genome.push_back(info[nk].asmb);
         //
         if(node_len <= wCut){
             iNum += 1;
@@ -1616,14 +2791,14 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             float trans = (wCut + node_len - preLen) * wPerK;
             dnode_len.push_back(trans);
         }        
-             
+              
         Nid tnid = {s_nid,e_nid,gNum};
         nid_dict.emplace(nk,tnid);
         gNum += 1;
     }
     
     for(auto &ed : r_edge_dict){
-        if(ed.second > 1){
+        if(ed.second > 1){     
             map<string,int> tdEdge;
             switch(ed.first.mark){
                 case '2':
@@ -1653,28 +2828,65 @@ void GraphRange::formatGraph(string &ass,string &sChr,int sStart,int sEnd,int ex
             }
         }
     }
-    if(ass != "0"){
-        int assNum = getAssNum(ass);
-        if(assNum < 0){
-            cerr<<"Error: assembly can't be found. "<<ass<<endl;
-            exit(1);
-        }
-        //
-        if(indexFlag){
-            dxAssNode(assNum,chrNum,sStart,sEnd,r_edge_dict,nid_dict);
+    if(asmb != ""){
+        if(asmb[0] == '!'){
+            string taskID = asmb.substr(1);
+            string taskDir = upDir + "/mapping/" + taskID;
+            int asmNum = -1;          
+            hAsmNode(taskDir,refSim,info,asmNum,r_edge_dict,nid_dict);
         }else{
-            hAssNode(ass,assNum,r_edge_dict,nid_dict);
+            if(asmb.find(",") != string::npos){
+                set<string> nameSet;
+                vector<int> asmNumVec;
+                int t = 0;
+                for(size_t i = 0; i < asmb.size(); ++i){
+                    if(asmb[i] == ','){
+                        int tlen = i - t;
+                        nameSet.insert(asmb.substr(t,tlen));
+                        t = i + 1;
+                    }
+                }
+                nameSet.insert(asmb.substr(t));
+                //
+                getAsmNum2(nameSet,asmNumVec);
+                //
+                if(asmNumVec.empty()){
+                    cerr<<"Error: assemblies can't be found. "<<asmb<<endl;
+                }
+                //
+                if(indexFlag){
+                    dxAsmNode2(refSim,asmNumVec,chrNum,sStart,sEnd,info,r_edge_dict,nid_dict);
+                }else{
+                    hAsmNode2(refSim,asmNumVec,r_edge_dict,nid_dict);
+                }
+            }else{
+                int asmNum = getAsmNum(asmb);
+                if(asmNum < 0){
+                    cerr<<"Error: assembly can't be found. "<<asmb<<endl;
+                    //exit(1);
+                }else{
+                    if(indexFlag){
+                        dxAsmNode(refSim,asmNum,chrNum,sStart,sEnd,info,r_edge_dict,nid_dict);
+                    }else{
+                        string taskDir = "";
+                        hAsmNode(taskDir,refSim,info,asmNum,r_edge_dict,nid_dict);
+                    }
+                }
+            }
         }
     }
     //
-    string bwGeneFile = upDir + "/gene.ref.bw";
-    string gDxFile = upDir + "/gene.ref.bdx";
-    
-    int lastLen = 0;
-    if(! rangeNode.empty()){
-        lastLen = info[rangeNode.back()].len;
+    if(! refSim){
+        string bwGeneFile = upDir + "/gene.ref.bw";
+        string gDxFile = upDir + "/gene.ref.bdx";
+        getFigGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,wPerK,exNode);
+        
+        string tkDesFile = upDir + "/track.info";
+        string bwBedFile = upDir + "/bed.ref.bw";
+        string bedDxFile = upDir + "/bed.ref.bdx";
+        getFigBed(tkDesFile,bwBedFile,bedDxFile,chrNum,sStart,sEnd,wPerK,exNode);
     }
-    getFigGene(bwGeneFile,gDxFile,chrNum,sStart,sEnd,lastLen,wPerK);
+    
 }
 
 //---------------
@@ -1715,9 +2927,11 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
     string preChr = "";
     int rangeStart = 1,rangeEnd = 1;
     int intSize = sizeof(int);
+
     int oneSize = sizeof(OneRange);
     int crSize = sizeof(ChrRange);
     long long ndByte = 0,ndUnit = intSize * 3;
+
     int dxByte = intSize + (intSize + crSize) * refChrMap.size();
     int dxUnit = sizeof(OneRange);
     int nchr = refChrMap.size();
@@ -1730,13 +2944,13 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
     
     map<string,ChrRange> dxChrMap;
     int nLine = 0;
+    //
     list<SANode> allNode;
     vector<string> chrVec;
     bool flag = false;
-    //
+    //int rCount = 0;
     int nsp = 0;
     nspfh.write((char *)&nsp,intSize);
-    
     while(getline(in,nodeLine)){
         strStream << nodeLine;
         NodeType r_node;
@@ -1753,25 +2967,31 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
             SANode xNode = {r_node,r_start,r_end,chrMap[r_chr]};
             allNode.push_back(xNode);
         }
-        
         if(r_ref == 0){
             string tName = "",t_hap = "",tchr = "";
-            assSplit(r_chr,sep,tName,t_hap,tchr);
-            
+            asmSplit(r_chr,sep,tName,t_hap,tchr);
             //
             if(tchr != preChr){
                 if(refChrMap.find(tchr) != refChrMap.end()){
                     chrVec.push_back(tchr);
                     if(preChr != ""){
+                        //int tnum = num - 1;
                         int tnum = num;
+                        /*
+                        dfh.write((char *)&rangeStart,intSize);
+                        dfh.write((char *)&rangeEnd,intSize);
+                        dfh.write((char *)&ndByte,llSize);
+                        dfh.write((char *)&tnum,intSize);
+                        */
                         OneRange aRange = {rangeStart,rangeEnd,ndByte,tnum};
                         dfh.write((char *)&aRange,oneSize);
                         ++nLine;
                         ChrRange chrinfo = {dxByte,nLine};
                         dxChrMap.emplace(preChr,chrinfo);
-                        //
+                        // next start
                         dxByte += nLine * dxUnit;
                         ndByte += tnum * ndUnit;
+                        //ndByte = ndUnit * rCount;
                     }
                     rangeStart = r_start;
                     rangeEnd = r_end;
@@ -1788,6 +3008,13 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
                 if(flag){
                     ++num;
                     if(num == rangeNum){
+                        //ofh<<tchr<<"\t"<<rangeStart<<"\t"<<r_end<<endl;
+                        /*
+                        dfh.write((char *)&rangeStart,intSize);
+                        dfh.write((char *)&rangeEnd,intSize);
+                        dfh.write((char *)&ndByte,llSize);
+                        dfh.write((char *)&num,intSize);
+                        */
                         rangeEnd = r_end;
                         OneRange aRange = {rangeStart,rangeEnd,ndByte,num};
                         dfh.write((char *)&aRange,oneSize);
@@ -1795,6 +3022,7 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
                         ++nLine;
                         //
                         ndByte += num * ndUnit;
+                        //ndByte = ndUnit * (rCount + 1);
                         num = 0;
                     }else{
                         if(num == 1){
@@ -1809,10 +3037,13 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
                 nfh.write((char *)&r_node,intSize);
                 nfh.write((char *)&r_start,intSize);
                 nfh.write((char *)&r_end,intSize);
+                //
+                //++rCount;
             }else{
                 nspfh.write((char *)&r_node,intSize);
                 ++nsp;
             }
+            //preChr = tchr;
         }
         strStream.clear();
         strStream.str("");
@@ -1824,6 +3055,12 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
     }
     
     if(num > 0){
+        /*
+        dfh.write((char *)&rangeStart,intSize);
+        dfh.write((char *)&rangeEnd,intSize);
+        dfh.write((char *)&ndByte,llSize);
+        dfh.write((char *)&num,intSize);
+        */
         OneRange aRange = {rangeStart,rangeEnd,ndByte,num};
         dfh.write((char *)&aRange,oneSize);
         //
@@ -1844,12 +3081,17 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
             exit(1);
         }
         allNode.sort();
+        //sfh.seekp(0,ios::beg);
         int total = allNode.back().node;
         sfh.write((char *)&total,intSize);
-        
         int pre = 0;
         int ndSize = sizeof(ANode);
         for(auto &gnode : allNode){
+            /*
+            sfh.write((char *)&gnode.start,intSize);
+            sfh.write((char *)&gnode.pend,intSize);
+            sfh.write((char *)&gnode.achr,intSize);
+            */
             for(int i = pre + 1; i < gnode.node; ++i){
                 ANode axNode = {0,0,0};
                 sfh.write((char *)&axNode,ndSize);    
@@ -1860,6 +3102,7 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
         }
         sfh.close();
     }
+    
     in.close();
     dfh.close();
     nfh.close();
@@ -1867,11 +3110,13 @@ void GraphRange::splitRange(int rangeNum,unordered_map<string,int> &chrMap,unord
 }
 
 void GraphRange::getNrefEdge(string &rndFile,string &nspecFile,vector<NEdge> &resEdge){
+    //string rndFile = pathDir + "/node.ref.bw";
     ifstream nfh(rndFile.c_str());
     if(! nfh){
-        cerr<<"Error: file open failed. "<< nodeFile<<endl;
+        cerr<<"Error: file open failed. "<<nodeFile<<endl;
         exit(1);
     }
+
     unordered_set<int> ntNode;
     int r_node,r_start,r_end;
     int intSize = sizeof(int);
@@ -1956,7 +3201,7 @@ void GraphRange::parseRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int
     
     int eStart = sStart - ex > 0 ? sStart - ex : 1;
     int eEnd = sEnd + ex;
-    //
+    //int rtotal = 0;
     bool flag = true;
     
     int pos = 0,posStart = 0;
@@ -2039,10 +3284,10 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
     }
     unordered_map<NodeType,std::vector<ENode> >::iterator it;
     for(NodeType &tnode: rangeNode){
+        vector<NodeType> tNref;
+        vector<int> deep;
         it = oedge.find(tnode);
         if(it != oedge.end()){
-            vector<NodeType> tNref;
-            vector<int> deep;
             for(ENode &o_node : it->second){
                 if(exNode.find(o_node.node) != exNode.end()){
                     //if(range_set.find(o_node.node) != range_set.end()){
@@ -2062,62 +3307,10 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
                     r_edge_dict.insert(sym);
                 }
             }
-            
-            if(! tNref.empty()){
-                size_t i = 0;
-                while(i < tNref.size()){
-                    if(deep[i] > storeDep){
-                        break;   
-                    }
-                    it = oedge.find(tNref[i]);
-                    if(it != oedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {tNref[i],to_node.node,to_node.mark};
-                                    r_edge_dict.insert(sym);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
-                                NEdge sym = {tNref[i],to_node.node,to_node.mark};
-                                r_edge_dict.insert(sym);
-                            }
-                        }
-                    }
-                        
-                    it = iedge.find(tNref[i]);
-                    if(it != iedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {to_node.node,tNref[i],to_node.mark};
-                                    r_edge_dict.insert(sym);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
-                                NEdge sym = {to_node.node,tNref[i],to_node.mark};
-                                r_edge_dict.insert(sym);
-                            }
-                        }
-                    }
-
-                    i += 1;
-                }
-            }
         }    
         //
         it = iedge.find(tnode);
         if(it != iedge.end()){
-            vector<NodeType> tNref;
-            vector<int> deep;
             for(ENode &o_node : it->second){
                 if(exNode.find(o_node.node) == exNode.end()){
                     if(nRefNode.find(o_node.node) == nRefNode.end()){
@@ -2134,61 +3327,61 @@ void GraphRange::edgeRange(vector<RNode> &chrRnode,vector<OneRange> &arcVec,int 
                     }
                 }
             }
-            
-            if(! tNref.empty()){
-                size_t i = 0;
-                while(i < tNref.size()){
-                    if(deep[i] > storeDep){
-                        break;   
-                    }
-                    
-                    it = oedge.find(tNref[i]);
-                    if(it != oedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {tNref[i],to_node.node,to_node.mark};
-                                    r_edge_dict.insert(sym);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
+        }
+        //
+        if(! tNref.empty()){
+            size_t i = 0;
+            while(i < tNref.size()){
+                if(deep[i] > storeDep){
+                    break;   
+                }
+                it = oedge.find(tNref[i]);
+                if(it != oedge.end()){
+                    for(ENode &to_node : it->second){
+                        if(exNode.find(to_node.node) != exNode.end()){
+                            if(range_set.find(to_node.node) != range_set.end()){
                                 NEdge sym = {tNref[i],to_node.node,to_node.mark};
                                 r_edge_dict.insert(sym);
                             }
+                        }else{
+                            if(nRefNode.find(to_node.node) == nRefNode.end()){
+                                tNref.push_back(to_node.node);
+                                deep.push_back(deep[i]+1);
+                                nRefNode.insert(to_node.node);
+                            }
+                            NEdge sym = {tNref[i],to_node.node,to_node.mark};
+                            r_edge_dict.insert(sym);
                         }
                     }
+                }
                     
-                    it = iedge.find(tNref[i]);
-                    if(it != iedge.end()){
-                        for(ENode &to_node : it->second){
-                            if(exNode.find(to_node.node) != exNode.end()){
-                                if(range_set.find(to_node.node) != range_set.end()){
-                                    NEdge sym = {to_node.node,tNref[i],to_node.mark};
-                                    r_edge_dict.insert(sym);
-                                }
-                            }else{
-                                if(nRefNode.find(to_node.node) == nRefNode.end()){
-                                    tNref.push_back(to_node.node);
-                                    deep.push_back(deep[i]+1);
-                                    nRefNode.insert(to_node.node);
-                                }
+                it = iedge.find(tNref[i]);
+                if(it != iedge.end()){
+                    for(ENode &to_node : it->second){
+                        if(exNode.find(to_node.node) != exNode.end()){
+                            if(range_set.find(to_node.node) != range_set.end()){
                                 NEdge sym = {to_node.node,tNref[i],to_node.mark};
                                 r_edge_dict.insert(sym);
                             }
+                        }else{
+                            if(nRefNode.find(to_node.node) == nRefNode.end()){
+                                tNref.push_back(to_node.node);
+                                deep.push_back(deep[i]+1);
+                                nRefNode.insert(to_node.node);
+                            }
+                            NEdge sym = {to_node.node,tNref[i],to_node.mark};
+                            r_edge_dict.insert(sym);
                         }
                     }
-                    i += 1;
                 }
+
+                i += 1;
             }
         }
     }
 }
 
-void GraphRange::fillNode(string &comChrFile,string &ndAssFile,string &nrNodeFile,string &nrNumFile,string &snFile,string &nrdFile){
+void GraphRange::fillNode(string &comChrFile,string &ndAsmFile,string &nrNodeFile,string &nrNumFile,string &snFile,string &nrdFile){
     ofstream nfh(nrdFile.c_str());
     if(! nfh){
         cerr<<"Error: file open failed. "<<nrdFile<<endl;
@@ -2196,50 +3389,51 @@ void GraphRange::fillNode(string &comChrFile,string &ndAssFile,string &nrNodeFil
     }
     
     ifstream acfh(comChrFile.c_str());
-    ifstream mfh(ndAssFile.c_str());
+    ifstream mfh(ndAsmFile.c_str());
     ifstream rdfh(nrNodeFile.c_str());
     ifstream rnfh(nrNumFile.c_str());
     ifstream sfh(snFile.c_str());
     
     int total = 0;
     int intSize = sizeof(int);
+    //int unit = intSize * 3;
     int unit = sizeof(ANode);
     
     string chrLine;
     unordered_map<int,string> chrMap;
-    unordered_map<string,string> chrAssMap;
-    unordered_map<string,int> assMap;
+    unordered_map<string,string> chrAsmMap;
+    unordered_map<string,int> asmMap;
     
     int pos = 0;
     while(getline(acfh,chrLine)){
         chrMap.emplace(pos,chrLine);
         string tName = "",t_hap = "",tchr = "";
-        assSplit(chrLine,sep,tName,t_hap,tchr);
-        chrAssMap.emplace(chrLine,tName + sep + t_hap);
+        asmSplit(chrLine,sep,tName,t_hap,tchr);
+        chrAsmMap.emplace(chrLine,tName + sep + t_hap);
         ++pos;
     }
     acfh.close();
     //
-    string jAss = "Jump" + sep + "H";
-    string uAss = "Un" + sep + "H";
-    string jComChr = jAss + sep + "1";
-    string uComChr = uAss + sep + "1";
+    string jAsm = "Jump" + sep + "H";
+    string uAsm = "Un" + sep + "H";
+    string jComChr = jAsm + sep + "1";
+    string uComChr = uAsm + sep + "1";
     chrMap.emplace(pos,jComChr);
-    chrAssMap.emplace(jComChr,jAss);
+    chrAsmMap.emplace(jComChr,jAsm);
     ++pos;
     chrMap.emplace(pos,uComChr);
-    chrAssMap.emplace(uComChr,uAss);
+    chrAsmMap.emplace(uComChr,uAsm);
     //
     pos = 0;
     while(getline(mfh,chrLine)){
-        assMap.emplace(chrLine,pos);
+        asmMap.emplace(chrLine,pos);
         ++pos;
     }
     mfh.close();
     //
-    assMap.emplace(jAss,pos);
+    asmMap.emplace(jAsm,pos);
     ++pos;
-    assMap.emplace(uAss,pos);
+    asmMap.emplace(uAsm,pos);
     //
     
     sfh.read((char *)&total,intSize);
@@ -2252,17 +3446,17 @@ void GraphRange::fillNode(string &comChrFile,string &ndAssFile,string &nrNodeFil
         int num = 0;
         rnfh.read((char *)&num,intSize);
         for(int k = 0; k < num; ++k){
-            int tnode = 0,tstart,tpend,tass;
+            int tnode = 0,tstart,tpend,tasm;
             rdfh.read((char *)&tnode,intSize);
             tstart = allNode[tnode-1].start;
             tpend = allNode[tnode-1].pend;
             
-            tass = assMap[chrAssMap[chrMap[allNode[tnode-1].achr]]];
+            tasm = asmMap[chrAsmMap[chrMap[allNode[tnode-1].achr]]];
             
             int tlen = tpend - tstart + 1;
             nfh.write((char *)&tnode,intSize);
             nfh.write((char *)&tlen,intSize);
-            nfh.write((char *)&tass,intSize);
+            nfh.write((char *)&tasm,intSize);
         }
     }
     
@@ -2293,10 +3487,11 @@ void GraphRange::mergeDx(string &rndDxFile,string &nrNumFile,string &mgDxFile){
     }
     
     int intSize = sizeof(int);
-
     int nchr = 0;
     rdfh.read((char *)&nchr,intSize);
+    
     mfh.write((char *)&nchr,intSize);
+    //int refChr,offByte,nLine;
     int refChr;
     ChrRange crRange;
     int crSize = sizeof(ChrRange);
@@ -2353,7 +3548,8 @@ void GraphRange::mergeDx(string &rndDxFile,string &nrNumFile,string &mgDxFile){
     rnfh.close();
 }
 
-void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordered_map<NodeType,vector<int> > &ndCutMap,list<PathRang> &allPaRa){
+// nodeA, nodeB not in the same range, add nodeB to the range the nodeA belong to
+void GraphRange::rangePath(bool formR,int num,vector<string> &qCigarVec,vector<int> &qPosVec,vector<char> &orient,vector<NodeType> &nodes,unordered_map<NodeType,vector<int> > &ndCutMap,list<PathRang> &allPaRa){
     unordered_map<int,vector<int> > fragPos;
     unordered_map<NodeType,vector<int> >::iterator it;
     int preMin,preMax,curMin,curMax;
@@ -2394,24 +3590,47 @@ void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordere
     int firNode = 0;
     char firOri = '\0';
     list<LagNode> nodeCons;
+    list<int> posList;
+    list<string> cigarList;
     for(auto &nd : fragPos){
         int pre = -2;
         for(auto pos : nd.second){
             if(pos - pre > 1){
+                //if(! nodeCons.empty()){
                 if(pre >= 0){
-                    PathRang tpRan = {nd.first,firNode,firOri,nodeCons};
+                    PathRang tpRan = {nd.first,num,firNode,firOri,nodeCons,posList,cigarList};
                     allPaRa.push_back(tpRan);
                     
                     nodeCons.clear();
+                    //
+                    posList.clear();
+                    if(formR){
+                        cigarList.clear();
+                        cigarList.push_back(qCigarVec[pos]);
+                    }
+                }else{
+                    if(formR){
+                        cigarList.push_back(qCigarVec[pos]);
+                    }
                 }
                 firNode = nodes[pos];
                 firOri = orient[pos];
+                //
+                posList.push_back(qPosVec[pos]);
+                
             }else{
                 int diff = nodes[pos] - firNode;
                 if(diff > 127 || diff < -128){
-                    PathRang tpRan = {nd.first,firNode,firOri,nodeCons};
+                    PathRang tpRan = {nd.first,num,firNode,firOri,nodeCons,posList,cigarList};
                     allPaRa.push_back(tpRan);
                     nodeCons.clear();
+                    
+                    //
+                    posList.clear();
+                    if(formR){
+                        cigarList.clear();
+                        cigarList.push_back(qCigarVec[pos]);
+                    }
                     //
                     firNode = nodes[pos];
                     firOri = orient[pos];
@@ -2420,31 +3639,47 @@ void GraphRange::rangePath(vector<char> &orient,vector<NodeType> &nodes,unordere
                     }else{
                         firOri = '2';
                     }
+                    //
+                    posList.push_back(qPosVec[pos]);
+                    //cigarList.push_back(qCigarVec[pos]);
                 }else{
                     LagNode tLag = {(char)diff,orient[pos]};
                     nodeCons.push_back(tLag);
+                    //
+                    if(formR){
+                        posList.push_back(qPosVec[pos]);
+                        cigarList.push_back(qCigarVec[pos]);
+                    }
                 }
             }
             pre = pos;
         }
         //
+        //if(! nodeCons.empty()){
         if(pre >= 0){
-            PathRang tpRan = {nd.first,firNode,firOri,nodeCons};
+            PathRang tpRan = {nd.first,num,firNode,firOri,nodeCons,posList,cigarList};
             allPaRa.push_back(tpRan);
             
             nodeCons.clear();
+            //
+            posList.clear();
+            if(formR){
+                cigarList.clear();
+            }
         }
     }
 }
 
-void GraphRange::pthTask(unordered_map<NodeType,vector<int> > &ndCutMap,vector<RanPos> &allpos,char *header,int dxByte,int frStart,int frEnd,vector<ifstream> &pthVec,vector<ofstream> &xpthVec,vector<ofstream> &wpthVec){
-
+// allLen
+void GraphRange::pthTask(bool formR,vector<int> &allLen,unordered_map<NodeType,vector<int> > &ndCutMap,vector<RanPos> &allpos,char *header,int dxByte,int frStart,int frEnd,vector<ifstream> &pthVec,vector<ofstream> &xpthVec,vector<ofstream> &wpthVec){
+    
     int oneSize = sizeof(OneRange);
     int intSize = sizeof(int);
     int lndSize = sizeof(LagNode);
     string fullName,path;
     for(int k = frStart; k < frEnd; ++k){
         list<PathRang> allPaRa;
+        int num = 0;
         while(pthVec[k] >> fullName){
             pthVec[k] >> path;
             //
@@ -2463,7 +3698,28 @@ void GraphRange::pthTask(unordered_map<NodeType,vector<int> > &ndCutMap,vector<R
                 }
             }
             nodes.push_back(snode);
-            rangePath(orient,nodes,ndCutMap,allPaRa);
+            vector<string> qCigarVec;
+            vector<int> qPosVec;
+            // formR
+            if(formR){
+                int qStart,rStart;
+                string cigar;
+                pthVec[k] >> qStart >> rStart >> cigar;
+                cigar2pos(qStart,rStart,allLen,cigar,nodes,qCigarVec,qPosVec);
+            }else{
+                char pType;
+                int rStart;
+                pthVec[k] >> pType;
+                if(pType == 'W'){
+                    pthVec[k] >>  rStart;
+                }else{
+                    rStart = 0;
+                }
+                path2pos(rStart,allLen,nodes,qPosVec);
+            }
+            rangePath(formR,num,qCigarVec,qPosVec,orient,nodes,ndCutMap,allPaRa);
+            //
+            ++num;
         }
         //
         int nr = 0;
@@ -2479,37 +3735,110 @@ void GraphRange::pthTask(unordered_map<NodeType,vector<int> > &ndCutMap,vector<R
                 xpthVec[k].write((char *)&abRange,oneSize);
                 ++nr;
             }
-            for(auto &tp : allPaRa){
-                if(tp.frag != preFrag){
-                    OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,num};
-                    xpthVec[k].write((char *)&abRange,oneSize);
-                    //
-                    num = 1 + tp.lag.size();
-                    preOff = offByte;
-                    offByte += (intSize * 2 + 1 + tp.lag.size() * 2);
-                    ++nr;
-                    
-                    for(int x = preFrag + 1; x < tp.frag; ++x){
-                        int tnum = 0;
-                        OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,tnum};
-                        xpthVec[k].write((char *)&abRange,oneSize);
-                        ++nr;
+            //
+            if(formR){
+                for(auto &tp : allPaRa){
+                    list<string>::iterator it = tp.cigarList.begin();
+                    string outStr;
+                    if(tp.firOri == '1'){
+                        outStr = ">";
+                    }else if(tp.firOri == '2'){
+                        outStr = "<";
+                    }else{
+                        outStr = string(1,tp.firOri);
                     }
-                }else{
-                    num += (1 + tp.lag.size());
-                    offByte += (intSize * 2 + 1 + tp.lag.size() * 2);
+                    outStr += (*it);
+                    ++it;
+                    
+                    list<LagNode>::iterator itx = tp.lag.begin();
+                    while(it != tp.cigarList.end()){
+                        outStr += string(1,itx->ori) + (*it);
+                        ++it;
+                        ++itx;
+                    }
+                    int cigarSize = outStr.size();
+                    //
+                    if(tp.frag != preFrag){
+                        OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,num};
+                        xpthVec[k].write((char *)&abRange,oneSize);
+                        // next range start
+                        num = 1 + tp.lag.size();
+                        preOff = offByte;
+                        //offByte += (intSize * 2 + 1 + tp.lag.size() * 2);
+                        // int: pathNum, firNode, tp.lag.size(); char: firOri; 2 chars: tp.lag
+                        offByte += (intSize * 3 + 1 + tp.lag.size() * 2 + intSize * (tp.posList.size() + 1) + cigarSize);
+                        ++nr;
+                        
+                        for(int x = preFrag + 1; x < tp.frag; ++x){
+                            int tnum = 0;
+                            OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,tnum};
+                            xpthVec[k].write((char *)&abRange,oneSize);
+                            ++nr;
+                        }
+                    }else{
+                        num += (1 + tp.lag.size());
+                        //offByte += (intSize * 2 + 1 + tp.lag.size() * 2);
+                        offByte += (intSize * 3 + 1 + tp.lag.size() * 2 + intSize * (tp.posList.size() + 1) + cigarSize);
+                    }
+                    //
+                    wpthVec[k].write((char *)&tp.pathNum,intSize);
+                    wpthVec[k].write((char *)&tp.firNode,intSize);
+                    wpthVec[k].write(&tp.firOri,1);
+                    int tori = tp.lag.size();
+                    wpthVec[k].write((char *)&tori,intSize);
+                    for(auto &x : tp.lag){
+                        wpthVec[k].write((char *)&x,lndSize);
+                    }
+                    //
+                    for(int tpos : tp.posList){
+                        wpthVec[k].write((char *)&tpos,intSize);
+                    }
+                    wpthVec[k].write((char *)&cigarSize,intSize);
+                    wpthVec[k].write(outStr.c_str(),cigarSize);
+                    //
+                    preFrag = tp.frag;
                 }
-                //
-                wpthVec[k].write((char *)&tp.firNode,intSize);
-                wpthVec[k].write(&tp.firOri,1);
-                int tori = tp.lag.size();
-                wpthVec[k].write((char *)&tori,intSize);
-                for(auto &x : tp.lag){
-                    wpthVec[k].write((char *)&x,lndSize);
+            }else{
+                for(auto &tp : allPaRa){
+                    if(tp.frag != preFrag){
+                        OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,num};
+                        xpthVec[k].write((char *)&abRange,oneSize);
+                        // next range start
+                        num = 1 + tp.lag.size();
+                        preOff = offByte;
+                        //offByte += (intSize * 2 + 1 + tp.lag.size() * 2);
+                        offByte += (intSize * 3 + 1 + tp.lag.size() * 2 + intSize * tp.posList.size());
+                        ++nr;
+                        
+                        for(int x = preFrag + 1; x < tp.frag; ++x){
+                            int tnum = 0;
+                            OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,tnum};
+                            xpthVec[k].write((char *)&abRange,oneSize);
+                            ++nr;
+                        }
+                    }else{
+                        num += (1 + tp.lag.size());
+                        //offByte += (intSize * 2 + 1 + tp.lag.size() * 2);
+                        offByte += (intSize * 3 + 1 + tp.lag.size() * 2 + intSize * tp.posList.size());
+                    }
+                    //
+                    wpthVec[k].write((char *)&tp.pathNum,intSize);
+                    wpthVec[k].write((char *)&tp.firNode,intSize);
+                    wpthVec[k].write(&tp.firOri,1);
+                    int tori = tp.lag.size();
+                    wpthVec[k].write((char *)&tori,intSize);
+                    for(auto &x : tp.lag){
+                        wpthVec[k].write((char *)&x,lndSize);
+                    }
+                    //
+                    for(int tpos : tp.posList){
+                        wpthVec[k].write((char *)&tpos,intSize);
+                    }
+                    //
+                    preFrag = tp.frag;
                 }
-                //
-                preFrag = tp.frag;
             }
+            
             //
             OneRange abRange = {allpos[nr].start,allpos[nr].pend,preOff,num};
             xpthVec[k].write((char *)&abRange,oneSize);
@@ -2529,18 +3858,196 @@ void GraphRange::pthTask(unordered_map<NodeType,vector<int> > &ndCutMap,vector<R
         
     }
     
+    //efh.close();
+    //bfh.close();
 }
 
-void GraphRange::indexPath(string &assFile,string &eIndexFile,string &bEdgeFile,int nthread){
-    ifstream in(assFile.c_str());
-    if(! in){
-        cerr<<"Error: file open failed. "<<assFile<<endl;
+//
+// ref, nonref len
+// all node len    int *allLen = ; delete []allLen;
+void GraphRange::getAllLen(string &snFile,vector<int> &allLen){    
+    ifstream sfh(snFile.c_str());
+    if(! sfh){
+        cerr<<"Error: file open failed. "<<snFile<<endl;
         exit(1);
     }
-    string assLine;
-    int nAss = 0;
-    while(getline(in,assLine)){
-        ++nAss;
+    int total = 0;
+    int intSize = sizeof(int);
+    int unit = sizeof(ANode);
+    sfh.read((char *)&total,intSize);
+    ANode eachNode;
+    allLen.reserve(total);
+    for(int i = 0; i < total; ++i){
+        sfh.read((char *)&eachNode,unit);
+        int tlen = eachNode.pend - eachNode.start + 1;
+        allLen.push_back(tlen);
+    }
+    sfh.close();
+}
+
+// [MIS=X] q move, [MDN=X] r move,   [H,P] not move
+// vector<string> qCigarVec;vector<int> qPosVec;
+void GraphRange::cigar2pos(int qStart,int rStart,vector<int> &allLen,string &cigar,vector<int> &nodes,vector<string> &qCigarVec,vector<int> &qPosVec){    
+    int tvalue = 0;
+    int rMove = 0, qMove = 0;
+    int qPreMove = 0;
+    int nextPos = 0;
+    int firLen = allLen[nodes[0] - 1];
+    int cumLen = firLen - rStart;
+    //
+    qPosVec.push_back(qStart);
+    string tCigar = "";
+    int i = 0;
+    int tlen = 0;
+    int preCum = cumLen;
+    int n = nodes.size();
+    for(char x : cigar){
+        if(x >= '0' && x <= '9'){
+            tvalue = tvalue * 10 + (x - '0');
+        }else{
+            switch(x){
+                case 'M':
+                    qMove += tvalue;
+                    rMove += tvalue;
+                    break;
+                case 'X':
+                    qMove += tvalue;
+                    rMove += tvalue;
+                    break;
+                case '=':
+                    qMove += tvalue;
+                    rMove += tvalue;
+                    break;
+                case 'I':
+                    qMove += tvalue;
+                    break;
+                case 'S':
+                    qMove += tvalue;
+                    break;
+                case 'D':
+                    rMove += tvalue;
+                    break;
+                case 'N':
+                    rMove += tvalue;
+                    break;
+            }
+            if(rMove < cumLen){
+                tCigar += to_string(tvalue) + string(1,x);
+            }else if(rMove == cumLen){
+                tCigar += to_string(tvalue) + string(1,x);
+                qCigarVec.push_back(tCigar);
+                tCigar = "";
+                //
+                ++i;
+                if(i < n){
+                    tlen = allLen[nodes[i] - 1];
+                    cumLen += tlen;
+                    //
+                    nextPos = qStart + qMove;
+                    qPosVec.push_back(nextPos);
+                }
+            }else{
+                // |-------|-------|---------|
+                //      |----------------------|
+                int nd = tvalue - (rMove - cumLen);
+                //if(nd > 0){
+                    tCigar += to_string(nd) + string(1,x);
+                //}
+                qCigarVec.push_back(tCigar);
+                tCigar = "";
+                // for last node cumLen >= rMove
+                preCum = cumLen;
+                ++i;
+                // query changes relative to previous position
+                int qd = nd;
+                if(i < n){
+                    if(qMove > qPreMove){
+                        nextPos = qStart + qMove + nd;
+                    }else{
+                        nextPos = qStart + qMove;
+                    }
+                    qPosVec.push_back(nextPos);
+                    //
+                    tlen = allLen[nodes[i] - 1];
+                    cumLen += tlen;
+                    qd += tlen;
+                }
+                //if(i < nodes.size(){
+                    while(1){
+                        if(rMove < cumLen){
+                            int td = rMove - preCum;
+                            tCigar = to_string(td) + string(1,x);
+                            break;
+                        }else if(rMove == cumLen){
+                            tCigar = to_string(tlen) + string(1,x);
+                            qCigarVec.push_back(tCigar);
+                            tCigar = "";
+                            //
+                            preCum = cumLen;
+                            ++i;
+                            if(i < n){
+                                nextPos = qStart + qMove;
+                                qPosVec.push_back(nextPos);
+                                //
+                                tlen = allLen[nodes[i] - 1];
+                                cumLen += tlen;
+                                //qd += tlen;
+                            }
+                            break;
+                        }else{
+                            tCigar = to_string(tlen) + string(1,x);
+                            qCigarVec.push_back(tCigar);
+                            tCigar = "";
+                            //
+                            preCum = cumLen;
+                            ++i;
+                            if(i < n){
+                                if(qMove > qPreMove){
+                                    nextPos = qStart + qPreMove + qd;
+                                }else{
+                                    nextPos = qStart + qMove;
+                                }
+                                qPosVec.push_back(nextPos);
+                                //
+                                tlen = allLen[nodes[i] - 1];
+                                cumLen += tlen;
+                                qd += tlen;
+                            }
+                        }
+                    }
+                //}
+            }
+            //
+            tvalue = 0;
+            qPreMove = qMove;
+        }
+    }
+    //
+    if(tCigar != ""){
+        qCigarVec.push_back(tCigar);
+    }
+}
+
+
+void GraphRange::path2pos(int rStart,vector<int> &allLen,vector<int> &nodes,vector<int> &qPosVec){
+    int tpos = rStart;
+    for(int x : nodes){        
+        qPosVec.push_back(tpos);
+        tpos += allLen[x-1];
+    }
+    
+}
+//
+void GraphRange::indexPath(bool formR,string &asmFile,string &eIndexFile,string &bEdgeFile,string &snFile,int nthread){
+    ifstream in(asmFile.c_str());
+    if(! in){
+        cerr<<"Error: file open failed. "<<asmFile<<endl;
+        exit(1);
+    }
+    string asmLine;
+    int nAsm = 0;
+    while(getline(in,asmLine)){
+        ++nAsm;
     }
     in.close();
     //
@@ -2621,16 +4128,16 @@ void GraphRange::indexPath(string &assFile,string &eIndexFile,string &bEdgeFile,
     efh.close();
     //
     int cthread = nthread;
-    if(nthread > nAss){
-        cthread = nAss;
+    if(nthread > nAsm){
+        cthread = nAsm;
     }
-    int etask = nAss / cthread;
-    int redis = nAss % cthread;
+    int etask = nAsm / cthread;
+    int redis = nAsm % cthread;
 
     vector<ifstream> pthVec;
     vector<ofstream> xpthVec;
     vector<ofstream> wpthVec;
-    for(int i = 0; i < nAss; ++i){
+    for(int i = 0; i < nAsm; ++i){
         string tpFile = pathDir + "/" + to_string(i) + ".path";
         string txpFile = pathDir + "/" + to_string(i) + ".path.bdx";
         string bwpFile = pathDir + "/" + to_string(i) + ".path.bw";
@@ -2640,6 +4147,10 @@ void GraphRange::indexPath(string &assFile,string &eIndexFile,string &bEdgeFile,
         wpthVec.push_back(ofstream(bwpFile.c_str()));
     }
     vector<thread> pdVec;
+    //
+    vector<int> allLen;
+    getAllLen(snFile,allLen);
+    //
     for(int n = 0; n < cthread; ++n){
         int frStart,frEnd;
         if(n < redis){
@@ -2654,14 +4165,14 @@ void GraphRange::indexPath(string &assFile,string &eIndexFile,string &bEdgeFile,
             frEnd = frStart + etask;
         }
         //
-        pdVec.push_back(thread(&GraphRange::pthTask,this,ref(ndCutMap),ref(allpos),header,dxByte,frStart,frEnd,ref(pthVec),ref(xpthVec),ref(wpthVec))); 
+        pdVec.push_back(thread(&GraphRange::pthTask,this,formR,ref(allLen),ref(ndCutMap),ref(allpos),header,dxByte,frStart,frEnd,ref(pthVec),ref(xpthVec),ref(wpthVec))); 
     }
     //
     for(auto &td : pdVec){
         td.join();
     }
     delete []header;
-    for(int j = 0; j < nAss; ++j){
+    for(int j = 0; j < nAsm; ++j){
         pthVec[j].close();
         xpthVec[j].close();
         wpthVec[j].close();
@@ -2681,14 +4192,14 @@ void GraphRange::oneTask(unordered_map<NodeType,vector<ENode> > &iedge,unordered
         if(nocross){
             iRanEdge = iedge;
             oRanEdge = oedge;
-            //
+            // rStart, rEnd
             edgeRange(chrRnode,acrVec,acrVec[k].ranStart,acrVec[k].ranEnd,ex,nocross,storeDep,chrRmEdge,iRanEdge,oRanEdge,r_edge_dict,nRefNode);
         }else{
             edgeRange(chrRnode,acrVec,acrVec[k].ranStart,acrVec[k].ranEnd,ex,nocross,storeDep,chrRmEdge,iedge,oedge,r_edge_dict,nRefNode);
         }
         //
         int tnum = nRefNode.size();
-        //
+        //nufh.write((char *)&tnum,intSize);
         frNrefNum[k] = tnum;
         for(auto &tnode : nRefNode){
             tndfh.write((char *)&tnode,intSize);
@@ -2708,7 +4219,12 @@ void GraphRange::oneTask(unordered_map<NodeType,vector<ENode> > &iedge,unordered
     }
 }
 
+/*
+  If a subset of chromosomes is selected to create index 'load.chr.list' will be created.
+  For original graph in rGFA format 'node.asm.list' will be used.
+*/
 void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,int nthread,int storeDep){
+    
     
     string rndDxFile = upDir + "/node.ref.bdx";
     string rndFile = upDir + "/node.ref.bw";
@@ -2722,7 +4238,7 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
     
     string nrNodeFile = upDir + "/node.nref.id";
     string nrNumFile = upDir + "/node.nref.num";
-    
+
     string bEdgeFile = upDir + "/edge.bw";
     string eIndexFile = upDir + "/edge.bdx";
     
@@ -2747,6 +4263,7 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
         exit(1);
     }
     
+    
     ofstream bfh(bEdgeFile.c_str());
     if(! bfh){
         cerr<<"Error: file open failed. "<<bEdgeFile<<endl;
@@ -2761,7 +4278,7 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
     //
     string chrLine;
     unordered_map<string,int> chrMap;
-    //
+    //unordered_map<string,string> chrAsmMap;
     int pos = 0;
     ifstream acfh(comChrFile.c_str());
     if(! acfh){
@@ -2774,16 +4291,16 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
     }
     acfh.close();
     //
-    string jAss = "Jump" + sep + "H";
-    string uAss = "Un" + sep + "H";
-    string jComChr = jAss + sep + "1";
-    string uComChr = uAss + sep + "1";
+    string jAsm = "Jump" + sep + "H";
+    string uAsm = "Un" + sep + "H";
+    string jComChr = jAsm + sep + "1";
+    string uComChr = uAsm + sep + "1";
     chrMap.emplace(jComChr,pos);
     ++pos;
     chrMap.emplace(uComChr,pos);
     //
     unordered_map<string,int> refChrMap;
-    vector<string> chrVec;
+    //vector<string> chrVec;
     pos = 0;
     ifstream cfh(chrFile.c_str());
     if(! cfh){
@@ -2812,6 +4329,7 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
                 refChrMap.emplace(tchr,pos);
                 ldfh<<chrLine<<endl;
             }
+            //chrVec.push_back(tchr);
             ++pos;
         }
         ldfh.close();
@@ -2820,19 +4338,22 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
             int tpos = chrLine.find("\t");
             string tchr = chrLine.substr(0,tpos);
             refChrMap.emplace(tchr,pos);
+            //chrVec.push_back(tchr);
             ++pos;
         }
         if(access(loadChrFile.c_str(),F_OK) == 0){
             remove(loadChrFile.c_str());
         }
     }
+    //
     cfh.close();
     if(refChrMap.empty()){
         cerr<<"Error: file is empty. "<<chrFile<<endl;
         exit(1);
     }
     
-    //
+    int intSize = sizeof(int);
+    int crSize = sizeof(ChrRange);
     splitRange(rangeSize,chrMap,refChrMap,rndDxFile,rndFile,nspecFile,snFile);
     //
     vector<NEdge> resEdge;
@@ -2860,32 +4381,32 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
     string preChr = "";
     vector<NEdge> chrRmEdge;
     chrRmEdge.reserve(10240);
-    int intSize = sizeof(int);
+    
     int total = 0;
     int nchr = 0;
-    //
+    // split alread check
     ifstream rxfh(rndDxFile.c_str());
     ifstream rnfh(rndFile.c_str());
     rxfh.read((char *)&nchr,intSize);
     xfh.write((char *)&nchr,intSize);
     map<int,ChrRange> chrRanMap;
+    
     vector<int> allchr;
     allchr.reserve(nchr);
-    //
+
     for(int t = 0; t < nchr; ++t){
         int tchr;
         ChrRange cRange;
         rxfh.read((char *)&tchr,intSize);
-        rxfh.read((char *)&cRange,intSize*2);
+        rxfh.read((char *)&cRange,crSize);
         xfh.write((char *)&tchr,intSize);
-        xfh.write((char *)&cRange,intSize*2);
+        xfh.write((char *)&cRange,crSize);
         
         allchr.push_back(tchr);
         chrRanMap.emplace(tchr,cRange);
         total += cRange.ranNum;
     }
     nufh.write((char *)&total,intSize);
-    //
     int oneSize = sizeof(OneRange);
     for(int xchr : allchr){
         ChrRange cRange = chrRanMap[xchr];
@@ -2898,6 +4419,9 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
             rxfh.read((char *)&aRange,oneSize);
             acrVec.push_back(aRange);
             chrNdNum += aRange.ranNum;
+            //if(k == 0){
+            //    chrNdOff = aRange.offByte;
+            //}
         }
         //
         unordered_set<int> ntNode;
@@ -2962,7 +4486,8 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
         for(int x = 0; x < cthread; ++x){
             nrFhVec[x].close();
             edFhVec[x].close();
-            //
+            // File size for each part should be <= std::numeric_limits<int>::max, 
+            // Empirically, human pangenome graph with more than 1000 assemblies can still be handled by this step. 
             string tNdFile = upDir + "/" + to_string(x) + ".nr.part";
             ifstream tf(tNdFile.c_str());
             tf.seekg(0,ios::end);
@@ -3003,19 +4528,26 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
     //
     rxfh.close();
     rnfh.close();
+    //in.close();
     bfh.close();
     xfh.close();
     nufh.close();
     ndfh.close();
     //--------------------------------
-    string ndAssFile = upDir + "/node.ass.list";
-    if(access(ndAssFile.c_str(),F_OK) == 0 ){
-        fillNode(comChrFile,ndAssFile,nrNodeFile,nrNumFile,snFile,nrdFile);
+    string ndAsmFile = upDir + "/node.asm.list";
+    if(access(ndAsmFile.c_str(),F_OK) == 0 ){
+        fillNode(comChrFile,ndAsmFile,nrNodeFile,nrNumFile,snFile,nrdFile);
     }else{
-        fillNode(comChrFile,assFile,nrNodeFile,nrNumFile,snFile,nrdFile);
+        fillNode(comChrFile,asmFile,nrNodeFile,nrNumFile,snFile,nrdFile);
     }
     mergeDx(rndDxFile,nrNumFile,mgDxFile);
-    indexPath(assFile,eIndexFile,bEdgeFile,nthread);
+    //
+    bool formR = true;
+    string formFile = upDir + "/form.info";
+    if(access(formFile.c_str(),F_OK) == 0){
+        formR = false;
+    }
+    indexPath(formR,asmFile,eIndexFile,bEdgeFile,snFile,nthread);
     //
     remove(nrNodeFile.c_str());
     remove(nrNumFile.c_str());
@@ -3024,7 +4556,7 @@ void GraphRange::edgeWrite(string &spChrFile,int rangeSize,int ex,int nocross,in
 //-----------------------------------
 QueryNode::QueryNode(string &t_dbDir):dbDir(t_dbDir){
     
-    assFile = dbDir + "/ass.list";
+    asmFile = dbDir + "/asm.list";
     comChrFile = dbDir + "/complete.chr.list";
     sepFile = dbDir + "/sep.info";
     
@@ -3032,14 +4564,17 @@ QueryNode::QueryNode(string &t_dbDir):dbDir(t_dbDir){
 }
 
 int QueryNode::countHeader(){
-    ifstream in(assFile.c_str());
+    ifstream in(asmFile.c_str());
     if(! in){
-        cerr<<"Error: file open failed. "<<assFile<<endl;
+        cerr<<"Error: file open failed. "<<asmFile<<endl;
         exit(1);
     }
     int pos = 0;
-    string assLine;
-    while(getline(in,assLine)){
+    string asmLine;
+    while(getline(in,asmLine)){
+        //if(asmLine = ""){
+        //    continue;
+        //}
         ++pos;
     }
     in.close();
@@ -3047,14 +4582,14 @@ int QueryNode::countHeader(){
 }
 
 void QueryNode::getHeader(){
-    ifstream in(assFile.c_str());
+    ifstream in(asmFile.c_str());
     if(! in){
-        cerr<<"Error: file open failed. "<<assFile<<endl;
+        cerr<<"Error: file open failed. "<<asmFile<<endl;
         exit(1);
     }
-    string assLine;
-    while(getline(in,assLine)){
-        header.push_back(assLine);
+    string asmLine;
+    while(getline(in,asmLine)){
+        header.push_back(asmLine);
     }
     in.close();
 }
@@ -3075,10 +4610,10 @@ void QueryNode::queryDbNode(int node){
     }
     cfh.close();
     //
-    string jAss = "Jump" + sep + "H";
-    string uAss = "Un" + sep + "H";
-    string jComChr = jAss + sep + "1";
-    string uComChr = uAss + sep + "1";
+    string jAsm = "Jump" + sep + "H";
+    string uAsm = "Un" + sep + "H";
+    string jComChr = jAsm + sep + "1";
+    string uComChr = uAsm + sep + "1";
     comChrMap.emplace(pos,jComChr);
     ++pos;
     comChrMap.emplace(pos,uComChr);
@@ -3098,26 +4633,26 @@ void QueryNode::queryDbNode(int node){
     nodeEnd = tnode.pend;
     string fullName = comChrMap[tnode.achr];
     string tName = "",t_hap = "",tchr = "";
-    assSplit(fullName,sep,tName,t_hap,tchr);
-    nodeAss = tName + sep + t_hap;
+    asmSplit(fullName,sep,tName,t_hap,tchr);
+    nodeAsm = tName + sep + t_hap;
     nodeChr = tchr;
     in.close();
 }
 //
-void QueryNode::queryGene(int node,string &nodeAss){
+void QueryNode::queryGene(int node,string &nodeAsm){
     string annoDxFile = dbDir + "/anno.bdx";
     string annoNumFile = dbDir + "/anno.num";
     
-    string assFile = dbDir + "/ass.list";
-    string assFile2 = dbDir + "/node.ass.list";
-    if(access(assFile2.c_str(),F_OK) == 0){
-        assFile = assFile2;
+    string asmFile = dbDir + "/asm.list";
+    string asmFile2 = dbDir + "/node.asm.list";
+    if(access(asmFile2.c_str(),F_OK) == 0){
+        asmFile = asmFile2;
     }
     int pos = 0;
-    ifstream afh(assFile.c_str());
+    ifstream afh(asmFile.c_str());
     string line;
     while(getline(afh,line)){
-        if(line == nodeAss){
+        if(line == nodeAsm){
             break;
         }
         ++pos;
@@ -3132,7 +4667,8 @@ void QueryNode::queryGene(int node,string &nodeAss){
     }
     in.seekg(sizeof(AnnoDx) * (node - 1),ios::beg);
     AnnoDx adx;
-    in.read((char *)&adx,sizeof(AnnoDx));   
+    in.read((char *)&adx,sizeof(AnnoDx));
+    //cout<<node<<" "<<adx.offset<<" "<<adx.num<<endl;    
     ifstream mfh(annoNumFile.c_str());
     ifstream nfh(annoFile.c_str());
     if(! nfh){
@@ -3157,14 +4693,44 @@ void QueryNode::queryGene(int node,string &nodeAss){
         geneStr.push_back(to_string(annoInfo.end));
         geneStr.push_back(annoInfo.geneID);
         geneStr.push_back(annoInfo.geneName);
-        geneStr.push_back(string(1,annoInfo.strand));
+        geneStr.push_back(string(1,annoInfo.strand));        
+
         geneList.push_back(geneStr);
+
     }
     in.close();
     mfh.close();
     nfh.close();
 }
 
+void QueryNode::fetchNdSeq(int node){
+    string seqFile = dbDir + "/graphSeq.fa";
+    string dxFile = dbDir + "/graphSeq.fa.bdx";
+    nodeSeq = "";
+    ifstream in(seqFile.c_str());
+    if(in){
+        ifstream dxfh(dxFile.c_str());
+        int uSize = sizeof(SeqDx);
+        long long dxOffset = (long long)(node - 1) * uSize;
+        dxfh.seekg(dxOffset);
+        SeqDx tdx;
+        dxfh.read((char *)&tdx,uSize);
+        if(tdx.offset == 0){            
+            nodeSeq.append(tdx.len,'N');
+        }else{           
+            in.seekg(tdx.offset);           
+            char *seq = new char[tdx.len+1];
+            in.read(seq,tdx.len);
+            seq[tdx.len] = '\0';
+            
+            nodeSeq = seq;
+            //
+            delete []seq;
+        }
+        in.close();
+        dxfh.close();
+    }
+}
 //
 void QueryNode::queryDbCov(int node){
     string dxCovFile = dbDir + "/cover.bdx";
@@ -3192,11 +4758,11 @@ void QueryNode::queryDbCov(int node){
     xfh.read((char *)&num2,usintSize);
     
     vfh.seekg(tByte,ios::beg);
-    int assNum = countHeader();
-    ndCov.reserve(assNum);
+    int asmNum = countHeader();
+    ndCov.reserve(asmNum);
     
-    if(num1 < assNum){
-        for(int x = 0; x < assNum; ++x){
+    if(num1 < asmNum){
+        for(int x = 0; x < asmNum; ++x){
             ndCov.push_back(0);
         }
         for(unsigned short int i = 0; i < num1; ++i){
@@ -3221,7 +4787,7 @@ void QueryNode::queryDbCov(int node){
             ndCov[posVec[w]] = (int)valVec[w];
         }
     }else{
-        for(int x = 0; x < assNum; ++x){
+        for(int x = 0; x < asmNum; ++x){
             unsigned short int value;
             vfh.read((char *)&value,usintSize);
             ndCov.push_back((int)value);
@@ -3231,7 +4797,7 @@ void QueryNode::queryDbCov(int node){
     vfh.close();
 }
 
-void QueryNode::queryAssCov(vector<int> &nodeVec,string &ass){
+void QueryNode::queryAsmCov(vector<int> &nodeVec,string &asmb){
     string dxCovFile = dbDir + "/cover.bdx";
     string covFile = dbDir + "/cover.bw";
     ifstream xfh(dxCovFile.c_str());
@@ -3250,11 +4816,11 @@ void QueryNode::queryAssCov(vector<int> &nodeVec,string &ass){
     long long unit = llSize + usintSize * 2;
     
     getHeader();
-    int assNum = header.size();
-    int assPos = 0;
-    for(int t = 0; t < assNum; ++t){
-        if(header[t] == ass){
-            assPos = t;
+    int asmNum = header.size();
+    int asmPos = 0;
+    for(int t = 0; t < asmNum; ++t){
+        if(header[t] == asmb){
+            asmPos = t;
             break;
         }
     }
@@ -3275,11 +4841,11 @@ void QueryNode::queryAssCov(vector<int> &nodeVec,string &ass){
         vfh.seekg(tByte,ios::beg);
         //
         flag = false;
-        if(num1 < assNum){
+        if(num1 < asmNum){
             for(unsigned short int i = 0; i < num1; ++i){
                 unsigned short int tpos;
                 vfh.read((char *)&tpos,usintSize);
-                if(tpos == assPos){
+                if(tpos == asmPos){
                     ndCov.push_back(1);
                     flag = true;
                     break;
@@ -3294,7 +4860,7 @@ void QueryNode::queryAssCov(vector<int> &nodeVec,string &ass){
             for(unsigned short int j = 0; j < num2; ++j){
                 unsigned short int tpos;
                 vfh.read((char *)&tpos,usintSize);
-                if(tpos == assPos){
+                if(tpos == asmPos){
                     flag = true;
                     p = j;
                 }
@@ -3315,10 +4881,10 @@ void QueryNode::queryAssCov(vector<int> &nodeVec,string &ass){
             }
             
         }else{
-            for(int x = 0; x < assNum; ++x){
+            for(int x = 0; x < asmNum; ++x){
                 unsigned short int value;
                 vfh.read((char *)&value,usintSize);
-                if(x == assPos){
+                if(x == asmPos){
                     ndCov.push_back((int)value);
                     break;
                 }
@@ -3346,25 +4912,57 @@ PYBIND11_MODULE(minipg,m){
         .def_readwrite("hnGroup",&GraphRange::hnGroup)
         .def_readwrite("hLinks",&GraphRange::hLinks)
         .def_readwrite("hDir",&GraphRange::hDir)
+        .def_readwrite("hEdgeAsm",&GraphRange::hEdgeAsm)
         .def_readwrite("ndGenePos",&GraphRange::ndGenePos)
         .def_readwrite("geneVec",&GraphRange::geneVec)
         .def_readwrite("layerVec",&GraphRange::layerVec)
         .def_readwrite("strandVec",&GraphRange::strandVec)
-        .def_readwrite("mgFlagVec",&GraphRange::mgFlagVec);
-        
+        .def_readwrite("mgFlagVec",&GraphRange::mgFlagVec)
+        .def_readwrite("ndExonPos",&GraphRange::ndExonPos)
+        .def_readwrite("rnaVec",&GraphRange::rnaVec)
+        .def_readwrite("eLayerVec",&GraphRange::eLayerVec)
+        .def_readwrite("eStrandVec",&GraphRange::eStrandVec)
+        .def_readwrite("eNumVec",&GraphRange::eNumVec)
+        .def_readwrite("eFlagVec",&GraphRange::eFlagVec)
+        .def_readwrite("ndCDSPos",&GraphRange::ndCDSPos)
+        .def_readwrite("cdsVec",&GraphRange::cdsVec)
+        .def_readwrite("cLayerVec",&GraphRange::cLayerVec)
+        .def_readwrite("cNumVec",&GraphRange::cNumVec)
+        .def_readwrite("tkNameVec",&GraphRange::tkNameVec)
+        .def_readwrite("tkDesVec",&GraphRange::tkDesVec)
+        .def_readwrite("tkColVec",&GraphRange::tkColVec)
+        .def_readwrite("tkCumVec",&GraphRange::tkCumVec)
+        .def_readwrite("tkItem",&GraphRange::tkItem)
+        .def_readwrite("rBedPos",&GraphRange::rBedPos)
+        .def_readwrite("rBedName",&GraphRange::rBedName)
+        .def_readwrite("rBedLayer",&GraphRange::rBedLayer)
+        .def_readwrite("rBedScore",&GraphRange::rBedScore)
+        .def_readwrite("rBedStrand",&GraphRange::rBedStrand)
+        .def_readwrite("tkItem",&GraphRange::tkItem)
+        .def_readwrite("figScale",&GraphRange::figScale)
+        .def_readwrite("tickValue",&GraphRange::tickValue)
+        .def_readwrite("tickPos",&GraphRange::tickPos)
+        .def_readwrite("qChr",&GraphRange::qChr)
+        .def_readwrite("qStart",&GraphRange::qStart)
+        .def_readwrite("qEnd",&GraphRange::qEnd)
+        .def_readwrite("qPath",&GraphRange::qPath)
+        .def_readwrite("qCigar",&GraphRange::qCigar);
+                
     py::class_<QueryNode>(m,"QueryNode")
         .def(py::init<string &>())
+        .def("fetchNdSeq",&QueryNode::fetchNdSeq)
         .def("queryDbNode",&QueryNode::queryDbNode)
         .def("queryGene",&QueryNode::queryGene)
         .def("queryDbCov",&QueryNode::queryDbCov)
-        .def("queryAssCov",&QueryNode::queryAssCov)
+        .def("queryAsmCov",&QueryNode::queryAsmCov)
         //.def_readwrite("header",&QueryNode::header)
         .def_readwrite("geneList",&QueryNode::geneList)
         .def_readwrite("ndCov",&QueryNode::ndCov)
-        .def_readwrite("nodeAss",&QueryNode::nodeAss)
+        .def_readwrite("nodeAsm",&QueryNode::nodeAsm)
         .def_readwrite("nodeChr",&QueryNode::nodeChr)
         .def_readwrite("nodeStart",&QueryNode::nodeStart)
-        .def_readwrite("nodeEnd",&QueryNode::nodeEnd);
+        .def_readwrite("nodeEnd",&QueryNode::nodeEnd)
+        .def_readwrite("nodeSeq",&QueryNode::nodeSeq);
 }
 
 #endif

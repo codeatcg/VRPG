@@ -79,14 +79,14 @@ string getSep(string &sepFile){
     return sep;
 }
 
-// assChrPos
-void getAssNode(string &nodeFile,string &sep,map<string,map<string,vector<NdPos> > > &nodeChrPos,string &refStr){
+// asmChrPos
+void getAsmNode(string &nodeFile,string &sep,map<string,map<string,vector<NdPos> > > &nodeChrPos,string &refStr){
     ifstream in(nodeFile.c_str());
     string line;
     string node,r_chr;
     int start,end,len,refOr;
     stringstream strStream;
-    string preAss = "";
+    string preAsm = "";
     string preChr = "";
     bool isRef = false;
     getline(in,line);
@@ -103,12 +103,12 @@ void getAssNode(string &nodeFile,string &sep,map<string,map<string,vector<NdPos>
         strStream.str("");
         //
         string tName,t_hap,tchr;
-        assSplit(r_chr,sep,tName,t_hap,tchr);
-        string assStr = tName + sep + t_hap;
+        asmSplit(r_chr,sep,tName,t_hap,tchr);
+        string asmStr = tName + sep + t_hap;
         
-        if(assStr != preAss){
+        if(asmStr != preAsm){
             if(refOr == 0){
-                refStr = assStr;
+                refStr = asmStr;
                 isRef = true;
             }else{
                 isRef = false;
@@ -120,7 +120,7 @@ void getAssNode(string &nodeFile,string &sep,map<string,map<string,vector<NdPos>
                 NdPos tndpos{start,end};
                 tvec.push_back(tndpos);
                 tChrPos.emplace(tchr,tvec);
-                nodeChrPos.emplace(assStr,tChrPos);
+                nodeChrPos.emplace(asmStr,tChrPos);
             }
         }else{
             if(! isRef){
@@ -128,41 +128,41 @@ void getAssNode(string &nodeFile,string &sep,map<string,map<string,vector<NdPos>
                 if(tchr != preChr){
                     vector<NdPos> tvec;
                     tvec.push_back(tndpos);
-                    nodeChrPos[assStr].emplace(tchr,tvec);
+                    nodeChrPos[asmStr].emplace(tchr,tvec);
                 }else{
-                    nodeChrPos[assStr][tchr].push_back(tndpos);
+                    nodeChrPos[asmStr][tchr].push_back(tndpos);
                 }
             }
         }
         //
         preChr = tchr;
-        preAss = assStr;
+        preAsm = asmStr;
     }
     in.close();
 }
 
-void rgSearch(vector<NdPos> &chrNode,vector<SimAnno> &assAnnoVec,int usize,size_t searchStart,size_t searchEnd,ofstream &out,int &total){
+void rgSearch(vector<NdPos> &chrNode,vector<SimAnno> &asmAnnoVec,int usize,size_t searchStart,size_t searchEnd,ofstream &out,int &total){
     size_t sPos = 0;
     //bool flag = true;
     for(size_t i = searchStart; i < searchEnd; ++i){
         size_t tPos = sPos;
         for(size_t s = sPos; s < chrNode.size(); ++s){
-            if(assAnnoVec[i].end < chrNode[s].start){
+            if(asmAnnoVec[i].end < chrNode[s].start){
                 tPos = s;
                 break;
             }else{
-                if(assAnnoVec[i].start <= chrNode[s].end){
+                if(asmAnnoVec[i].start <= chrNode[s].end){
                     AnnoLine anno;
                     anno.seqid[FIELDSIZE-1] = '\0';
                     anno.geneID[FIELDSIZE-1] = '\0';
                     anno.geneName[FIELDSIZE-1] = '\0';
                     
-                    strncpy(anno.seqid,assAnnoVec[i].seqid.c_str(),FIELDSIZE-1);
-                    strncpy(anno.geneID,assAnnoVec[i].geneID.c_str(),FIELDSIZE-1);
-                    strncpy(anno.geneName,assAnnoVec[i].geneName.c_str(),FIELDSIZE-1);
-                    anno.strand = assAnnoVec[i].strand[0];
-                    anno.start = assAnnoVec[i].start;
-                    anno.end = assAnnoVec[i].end;
+                    strncpy(anno.seqid,asmAnnoVec[i].seqid.c_str(),FIELDSIZE-1);
+                    strncpy(anno.geneID,asmAnnoVec[i].geneID.c_str(),FIELDSIZE-1);
+                    strncpy(anno.geneName,asmAnnoVec[i].geneName.c_str(),FIELDSIZE-1);
+                    anno.strand = asmAnnoVec[i].strand[0];
+                    anno.start = asmAnnoVec[i].start;
+                    anno.end = asmAnnoVec[i].end;
                     
                     out.write((char *)&anno,usize);
                     
@@ -177,7 +177,7 @@ void rgSearch(vector<NdPos> &chrNode,vector<SimAnno> &assAnnoVec,int usize,size_
     }
 }
 
-void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &assChrPos,bool isRef,string &outFile){
+void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &asmChrPos,bool isRef,string &outFile){
     igzstream in(gffFile.c_str());
     ofstream out(outFile.c_str());
     if(! in){
@@ -229,11 +229,12 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
 
     bool chrFind = false;
     
-    vector<SimAnno> assAnnoVec;
+    vector<SimAnno> asmAnnoVec;
     //map<string,vector<SimAnno> > allGene;
     
     int total = 0;
     out.write((char *)&total,sizeof(int));
+    //
     while(getline(in,line)){
         if(line[0] != '#'){
             sregex_token_iterator pos(line.begin(),line.end(),pat0,-1);
@@ -273,7 +274,8 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
                 continue;
             }
             //------------------------------------
-            if(seqID != preSeqID){
+            // gff seqid -- graph gseqid
+            if(seqID != preSeqID){                
                 gSeqID = seqID;
                 if(flag){
                     if(chrMap.find(seqID) != chrMap.end()){
@@ -281,12 +283,12 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
                     }
                 }
             }
-            // ref  {gSeqID,start,end,geneID,geneName,strand};
+            //
             if(isRef){
                 chrFind = true;
             }else{
                 if(seqID != preSeqID){
-                    if(assChrPos.find(gSeqID) != assChrPos.end()){
+                    if(asmChrPos.find(gSeqID) != asmChrPos.end()){
                         chrFind = true;
                     }else{
                         chrFind = false;
@@ -310,16 +312,17 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
                 }
                 //
                 SimAnno tAnno = {gSeqID,start,end,geneID,geneName,strand};
-                assAnnoVec.push_back(tAnno);
+                asmAnnoVec.push_back(tAnno);
             }
             //
             preSeqID = seqID;
+            //preGid = gSeqID;
         }
     }
     //
-    sort(assAnnoVec.begin(),assAnnoVec.end(),byPos);
+    sort(asmAnnoVec.begin(),asmAnnoVec.end(),byPos);
     if(isRef){
-        for(SimAnno &xAnno : assAnnoVec){
+        for(SimAnno &xAnno : asmAnnoVec){
             AnnoLine anno;
             anno.seqid[FIELDSIZE-1] = '\0';
             anno.geneID[FIELDSIZE-1] = '\0';
@@ -336,17 +339,17 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
             
             //++total;
         }
-        total = assAnnoVec.size();
+        total = asmAnnoVec.size();
     }else{
         //[searchStart,searchEnd)
         size_t searchStart = 0,searchEnd = 0;
-        for(size_t k = 0; k < assAnnoVec.size(); ++k){
-            gSeqID = assAnnoVec[k].seqid;
+        for(size_t k = 0; k < asmAnnoVec.size(); ++k){
+            gSeqID = asmAnnoVec[k].seqid;
             if(k > 0 && gSeqID != preGid){
                 searchEnd = k;
                 //
-                vector<NdPos> &chrNode = assChrPos[preGid];
-                rgSearch(chrNode,assAnnoVec,usize,searchStart,searchEnd,out,total);
+                vector<NdPos> &chrNode = asmChrPos[preGid];
+                rgSearch(chrNode,asmAnnoVec,usize,searchStart,searchEnd,out,total);
                 //
                 searchStart = k;
             }
@@ -354,10 +357,10 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
             preGid = gSeqID;
         }
         //
-        searchEnd = assAnnoVec.size();
+        searchEnd = asmAnnoVec.size();
         if(searchEnd > 0){
-            vector<NdPos> &chrNode = assChrPos[preGid];
-            rgSearch(chrNode,assAnnoVec,usize,searchStart,searchEnd,out,total);
+            vector<NdPos> &chrNode = asmChrPos[preGid];
+            rgSearch(chrNode,asmAnnoVec,usize,searchStart,searchEnd,out,total);
         }
     }
     //
@@ -368,45 +371,45 @@ void simpGFF(string &gffFile,string &chrNameFile,map<string,vector<NdPos> > &ass
     out.close();
 }
 
-void simAllGFF(const char *assListFile,const char *gffListFile,string &nodeFile,string &sep,string &annoDir){
-    ifstream af(assListFile);
+void simAllGFF(const char *asmListFile,const char *gffListFile,string &nodeFile,string &sep,string &annoDir){
+    ifstream af(asmListFile);
     ifstream gf(gffListFile);
     
     string line;
     stringstream strStream;
     int i = 0;
-    map<string,int> assMap;
+    map<string,int> asmMap;
     while(getline(af,line)){
-        assMap.emplace(line,i);
+        asmMap.emplace(line,i);
         ++i;
     }
     
     map<string,map<string,vector<NdPos> > > nodeChrPos;
     string refStr = "";
-    getAssNode(nodeFile,sep,nodeChrPos,refStr);
+    getAsmNode(nodeFile,sep,nodeChrPos,refStr);
     
-    string ass,gffFile,chrNameFile;
+    string asmb,gffFile,chrNameFile;
     while(getline(gf,line)){
         strStream << line;
     
-        strStream >> ass;
+        strStream >> asmb;
         strStream >> gffFile;
         strStream >> chrNameFile;
         
-        string outFile = annoDir + "/" + to_string(assMap[ass]) + ".anno.bw";
+        string outFile = annoDir + "/" + to_string(asmMap[asmb]) + ".anno.bw";
         cout<<"Process -- "<<gffFile<<endl;
         
-        if(ass == refStr){
-            map<string,vector<NdPos> > assChrPos;
+        if(asmb == refStr){
+            map<string,vector<NdPos> > asmChrPos;
             bool isRef = true;
-            simpGFF(gffFile,chrNameFile,assChrPos,isRef,outFile);
+            simpGFF(gffFile,chrNameFile,asmChrPos,isRef,outFile);
         }else{
-            if(nodeChrPos.find(ass) == nodeChrPos.end()){
-                cout<<"Warning: "<<ass<<" can't be found in the graph. Please check the assembly name in gffList file."<<endl;
+            if(nodeChrPos.find(asmb) == nodeChrPos.end()){
+                cout<<"Warning: "<<asmb<<" can't be found in the graph. Please check the assembly name in gffList file."<<endl;
             }else{
                 bool isRef = false;
-                map<string,vector<NdPos> > &assChrPos = nodeChrPos[ass];
-                simpGFF(gffFile,chrNameFile,assChrPos,isRef,outFile);
+                map<string,vector<NdPos> > &asmChrPos = nodeChrPos[asmb];
+                simpGFF(gffFile,chrNameFile,asmChrPos,isRef,outFile);
             }
         }
         strStream.clear();
@@ -447,17 +450,17 @@ int getMax(const char *nodeFile){
     return maxNode;
 }
 
-void findGene(const char *nodeFile,const char *assListFile,string &annoDir,string &sep,const char *bdxFile,const char *numFile){
-    ifstream af(assListFile);
+void findGene(const char *nodeFile,const char *asmListFile,string &annoDir,string &sep,const char *bdxFile,const char *numFile){
+    ifstream af(asmListFile);
     ifstream nfh(nodeFile);
     ofstream bdx(bdxFile);
     ofstream mfh(numFile);
     
     int i = 0;
-    map<string,int> assMap;
+    map<string,int> asmMap;
     string line;
     while(getline(af,line)){
-        assMap.emplace(line,i);
+        asmMap.emplace(line,i);
         ++i;
     }
     af.close();    
@@ -467,7 +470,7 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
     string r_chr;
     int node,start,end;
     string preSeq = "";
-    AnnoLine *assAnno = nullptr;
+    AnnoLine *asmAnno = nullptr;
     bool flag = false;
     int maxNode = getMax(nodeFile);
     AnnoDx *dxArr = new AnnoDx[maxNode];
@@ -482,7 +485,7 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
         
     map<string,NdPos> sChrMap;
     string p_tchr = "";
-    bool assFind = false;
+    bool asmFind = false;
     while(getline(nfh,line)){
         strStream << line;
         strStream >> node;
@@ -493,35 +496,35 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
         strStream.str("");
         //
         tName = "",t_hap = "",tchr = "";
-        assSplit(r_chr,sep,tName,t_hap,tchr);
-        string assStr = tName + sep + t_hap;
-        if(assStr != preSeq){
+        asmSplit(r_chr,sep,tName,t_hap,tchr);
+        string asmStr = tName + sep + t_hap;
+        if(asmStr != preSeq){
             if(flag){
-                delete []assAnno;
+                delete []asmAnno;
                 flag = false;
                 sChrMap.clear();
             }
             //
-            string annoFile = annoDir + "/" + to_string(assMap[assStr]) + ".anno.bw";
+            string annoFile = annoDir + "/" + to_string(asmMap[asmStr]) + ".anno.bw";
             ifstream in(annoFile.c_str());
             if(! in){
-                cerr<<"Warning: Annotation of "<<assStr<<" can't be found."<<endl;
-                assFind = false;
+                cerr<<"Warning: Annotation of "<<asmStr<<" can't be found."<<endl;
+                asmFind = false;
             }else{
-                assFind = true;
+                asmFind = true;
             }
-            if(assFind){
+            if(asmFind){
                 in.read((char *)&nline,sizeof(int));
                 
-                assAnno = new AnnoLine[nline];
-                in.read((char *)assAnno,sizeof(AnnoLine)*nline);
+                asmAnno = new AnnoLine[nline];
+                in.read((char *)asmAnno,sizeof(AnnoLine)*nline);
                 flag = true;
                 in.close();
                 //
                 string preChr = "";
                 int tstart = 0;
                 for(int k = 0; k < nline; ++k){
-                    if(strcmp(assAnno[k].seqid,preChr.c_str()) != 0){
+                    if(strcmp(asmAnno[k].seqid,preChr.c_str()) != 0){
                         if(k > 0){
                             if(sChrMap.find(preChr) == sChrMap.end()){
                                 NdPos txpos = {tstart,k-1};
@@ -531,7 +534,7 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
                         }
                         //
                         tstart = k;
-                        preChr = assAnno[k].seqid;
+                        preChr = asmAnno[k].seqid;
                     }
                 }
                 if(sChrMap.find(preChr) == sChrMap.end()){
@@ -546,7 +549,7 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
             p_tchr = "";
         }
         vector<int> posVec;
-        if(assFind){
+        if(asmFind){
             bool fir = true;
             bool chrFind = true;
             if(tchr != p_tchr){
@@ -566,9 +569,9 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
             //for(int i = pSearchStart; i < nline; ++i){
             if(chrFind){
                 for(int i = searchStart; i <= searchEnd; ++i){    
-                    //if(strcmp(assAnno[i].seqid,tchr.c_str()) == 0){
-                        if(assAnno[i].end >= start){
-                            if(assAnno[i].start <= end){
+                    //if(strcmp(asmAnno[i].seqid,tchr.c_str()) == 0){
+                        if(asmAnno[i].end >= start){
+                            if(asmAnno[i].start <= end){
                                 posVec.push_back(i);
                                 if(fir){
                                     moveStart = i;
@@ -595,13 +598,13 @@ void findGene(const char *nodeFile,const char *assListFile,string &annoDir,strin
         dxArr[node-1].num = tnum;
         offset += posVec.size() * intSize;
         //
-        preSeq = assStr;
+        preSeq = asmStr;
         p_tchr = tchr;
     }
     bdx.write((char *)dxArr,uSize*maxNode);
     delete []dxArr;
     if(flag){
-        delete []assAnno;
+        delete []asmAnno;
     }
     //
     nfh.close();
@@ -666,17 +669,17 @@ int ndg_main(int argc,char **argv){
         }
     }
     string nodeFile = outDir + "/node.info";
-    string assFile = outDir + "/node.ass.list";
-    string assFile2 = outDir + "/ass.list";
+    string asmFile = outDir + "/node.asm.list";
+    string asmFile2 = outDir + "/asm.list";
     
-    if(access(assFile.c_str(),F_OK) != 0){
-        assFile =  assFile2;
+    if(access(asmFile.c_str(),F_OK) != 0){
+        asmFile =  asmFile2;
     }
     string annoDxFile = outDir + "/anno.bdx";
     string annoNumFile = outDir + "/anno.num";
     //
-    simAllGFF(assFile.c_str(),gffListFile,nodeFile,sep,annoDir);
-    findGene(nodeFile.c_str(),assFile.c_str(),annoDir,sep,annoDxFile.c_str(),annoNumFile.c_str());
+    simAllGFF(asmFile.c_str(),gffListFile,nodeFile,sep,annoDir);
+    findGene(nodeFile.c_str(),asmFile.c_str(),annoDir,sep,annoDxFile.c_str(),annoNumFile.c_str());
     return 0;
 }
 

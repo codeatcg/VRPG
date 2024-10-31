@@ -4,23 +4,13 @@
 #include <stdlib.h>
 #include <regex>
 #include <unistd.h>
-//#include <algorithm>
+#include <algorithm>
 #include "vgraph.h"
 #include "gz.h"
 
 using namespace std;
 
-/*
-#define FIELDSIZE 64
-typedef struct NdGene{
-    int node;
-    int reStart;
-    int len;
-    char name[FIELDSIZE];
-    uint8_t layer;
-    char strand;
-} NodeGene;
-*/
+// replace unknown with U
 
 typedef struct{
     int start;
@@ -28,6 +18,7 @@ typedef struct{
     string id;
     string name;
     char strand;
+    uint8_t num;
 } GeneInfo;
 // id name strand chr start end
 bool byPos(GeneInfo &a,GeneInfo &b){
@@ -41,7 +32,6 @@ bool byPos(GeneInfo &a,GeneInfo &b){
     }
     return false;
 }
-
 //
 // chr start end id name strand layer
 // node gene_name gene_start gene_end gene_layer
@@ -50,20 +40,14 @@ bool byPos(GeneInfo &a,GeneInfo &b){
 //     | b |
 // node gene_name relative_start gene_len gene_layer
 
-
-// nchr chr1 {offset nline} chr2 {offset nline} GeneLayer
-// nchr chr1 {offset nline} chr2 {offset nline} {start end offset}    // dxFile
-// NodeGene                // node gene
-// ref_draw_pos   vector<int> [start,end,start,end]
-// ref_draw_layer vector<int>
-// ref_draw_gene_name vector<string>
-
 typedef struct{
     int start;
     int end;
     string name;
-    uint8_t layer;
+    char type;
     char strand;
+    uint8_t layer;
+    uint8_t num;
 } SimGene;
 
 void chrNameTrans(char *chrMapFile,map<string,string> &transMap){
@@ -94,6 +78,9 @@ void chrNameTrans(char *chrMapFile,map<string,string> &transMap){
     in.close();
 }
 
+/*
+    Output: The value in last column is 0 for gene and non zero for exon or CDS. 
+*/
 void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
     igzstream in(inGFF);
     if(! in){
@@ -117,18 +104,26 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
     regex pat1("ID=(.+?)(;|$)");
     regex pat2("Name=(.+?)(;|$)");
     regex pat3("gene$");
-    string seqID,type,strand,attr,geneID,geneName;
+    regex pat4("Parent=(.+?)(;|$)");
+    string seqID,type,strand,attr,geneID,geneName,parent;
     string preSeqID = "";
+    string preGeneID = "";
     
     string line;
     map<string,vector<GeneInfo> > allChrGene;
     vector<string> chrVec;
+    
+    map<string,vector<GeneInfo> > emap,cmap,gmap;
+    vector<string> rParent;
+    int gStart = 0,gEnd = 0;
+    map<string,int> rnaCtmap;
+    // no exon or no CDS
     while(getline(in,line)){
         if(line[0] != '#' && line[0] != '\0'){
             sregex_token_iterator pos(line.begin(),line.end(),pat0,-1);
             sregex_token_iterator pend;
             int i = 0;
-            bool flag = false;
+            bool flag = false, eflag = false, cflag = false;
             int start = 0,end = 0;
             while(pos != pend){
                 switch(i){
@@ -157,7 +152,12 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                 if(i == 2){
                     if(regex_search(type,pat3)){
                         flag = true;
+                    }else if(type == "exon"){
+                        eflag = true;
+                    }else if(type == "CDS"){
+                        cflag = true;
                     }else{
+                        flag = false;
                         break;
                     }
                 }
@@ -166,6 +166,41 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
             }
             //
             if(flag){
+                if(preGeneID != ""){
+                    rnaCtmap.emplace(preGeneID,rParent.size());
+                    //
+                    vector<GeneInfo> transcript;
+                    for(string &par : rParent){
+                        int x = 1;
+                        if(emap.find(par) != emap.end()){
+                            sort(emap[par].begin(),emap[par].end(),byPos);
+                            for(GeneInfo &bk : emap[par]){
+                                bk.num = x;
+                                transcript.push_back(bk);
+                                //
+                                ++x;
+                            }
+                        }
+                        //
+                        x = 1;
+                        if(cmap.find(par) != cmap.end()){
+                            sort(cmap[par].begin(),cmap[par].end(),byPos);
+                            for(GeneInfo &bk : cmap[par]){
+                                bk.num = x;
+                                transcript.push_back(bk);
+                                //
+                                ++x;
+                            }
+                        }
+                    }
+                    //
+                    gmap.emplace(preGeneID,transcript);
+                }
+                //
+                emap.clear();
+                cmap.clear();
+                rParent.clear();
+                //
                 if(start < 1 || end < 1){
                     cerr<<"Error: failed to get feature position. "<<line<<endl;
                     exit(1);
@@ -175,12 +210,13 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                 if(regex_search(attr,s,pat1)){
                     geneID = s[1];
                 }else{
-                    geneID = "unknown";
+                    cerr<<"Error: attribute 'ID' was not defined. "<<line<<endl;
+                    exit(1);
                 }
                 if(regex_search(attr,s,pat2)){
                     geneName = s[1];
                 }else{
-                    geneName = "unknown";
+                    geneName = "U";
                 }
                 GeneInfo tgene = {start,end,geneID,geneName,strand[0]};
                 if(trans){
@@ -202,12 +238,101 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                     allChrGene[seqID].push_back(tgene);
                 }
                 preSeqID = seqID;
+                //
+                preGeneID = geneID;
+                gStart = start;
+                gEnd = end;
+            }else if(eflag){
+                if(start < 1 || end < 1){
+                    cerr<<"Error: failed to get feature position. "<<line<<endl;
+                    exit(1);
+                }
+                //
+                if(start >= gStart && end <= gEnd){
+                    smatch s;
+                    if(regex_search(attr,s,pat4)){
+                        parent = s[1];
+                        if(emap.find(parent) == emap.end()){
+                            vector<GeneInfo> tg;
+                            tg.push_back({start,end,parent,"E",strand[0]});
+                            emap.emplace(parent,tg);
+                            rParent.push_back(parent);
+                        }else{
+                            emap[parent].push_back({start,end,parent,"E",strand[0]});
+                        }
+                    }else{
+                        cerr<<"Error: attribute 'Parent' was not defined. "<<line<<endl;
+                        exit(1);
+                    }
+                }else{
+                    cerr<<"Warning: exon is out of the range of the gene or the gene is not defined. "<<line<<endl;
+                }
+            }else if(cflag){
+                if(start < 1 || end < 1){
+                    cerr<<"Error: failed to get feature position. "<<line<<endl;
+                    exit(1);
+                }
+                //
+                if(start >= gStart && end <= gEnd){
+                    smatch s;
+                    if(regex_search(attr,s,pat4)){
+                        parent = s[1];
+                        if(cmap.find(parent) == cmap.end()){
+                            vector<GeneInfo> tg;
+                            tg.push_back({start,end,parent,"C",strand[0]});
+                            cmap.emplace(parent,tg);
+                            if(emap.find(parent) == emap.end()){
+                                rParent.push_back(parent);
+                            }
+                        }else{
+                            cmap[parent].push_back({start,end,parent,"C",strand[0]});
+                        }
+                    }else{
+                        cerr<<"Error: attribute 'Parent' was not defined. "<<line<<endl;
+                        exit(1);
+                    }
+                }else{
+                    cerr<<"Warning: CDS is out of the range of the gene or the gene is not defined. "<<line<<endl;
+                }
             }
             
         }
     }
     //
-    //map<int,int> geneLayer;
+    if(preGeneID != ""){
+        rnaCtmap.emplace(preGeneID,rParent.size());
+        //
+        vector<GeneInfo> transcript;
+        for(string &par : rParent){
+            int x = 1;
+            if(emap.find(par) != emap.end()){
+                sort(emap[par].begin(),emap[par].end(),byPos);
+                for(GeneInfo &bk : emap[par]){
+                    bk.num = x;
+                    transcript.push_back(bk);
+                    //
+                    ++x;
+                }
+            }
+            //
+            x = 1;
+            if(cmap.find(par) != cmap.end()){
+                sort(cmap[par].begin(),cmap[par].end(),byPos);
+                for(GeneInfo &bk : cmap[par]){
+                    bk.num = x;
+                    transcript.push_back(bk);
+                    //
+                    ++x;
+                }
+            }
+        }
+        //
+        gmap.emplace(preGeneID,transcript);
+    }
+    //
+    emap.clear();
+    cmap.clear();
+    rParent.clear();
     for(string &tchr : chrVec ){
         vector<GeneInfo> &chrGene = allChrGene[tchr];
         sort(chrGene.begin(),chrGene.end(),byPos);
@@ -215,12 +340,13 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
         int maxLayer = 1;
         size_t sPos = 0;
         bool overlap = false;
-        vector<int> layVec;
+        vector<int> layVec;        
         for(size_t k = 0; k < chrGene.size(); ++k){
+            // Is current gene has a overlap with previous genes ?
+            // no overlap; new start
             vector<int> layerSta(maxLayer,0);
+            overlap = false;
             for(size_t m = sPos; m < k; ++m){
-                //chrGene[k].start
-                //chrGene[k].end
                 if(chrGene[k].start <= chrGene[m].end && chrGene[k].end >= chrGene[m].start){
                     layerSta[layVec[m - sPos] - 1] = 1;
                     overlap = true; 
@@ -242,21 +368,96 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                     layVec.push_back(maxLayer);
                 }
             }else{
-                for(size_t j = sPos; j < k; ++j){
-                    out<<tchr<<"\t"<<chrGene[j].start<<"\t"<<chrGene[j].end<<"\t"<<chrGene[j].id<<"\t"<<chrGene[j].name<<"\t"<<chrGene[j].strand<<"\t"<<layVec[j - sPos]<<endl;
+                //   -------       ---------
+                //       ---------------------
+                //        max rna count
+                // glayer --------------> layCum
+                if(k > 0){
+                    map<int,int> layMax, layCum;
+                    for(size_t p = sPos; p < k; ++p){                    
+                        int rnaNum = rnaCtmap[chrGene[p].id];
+                        int glayer = layVec[p - sPos];
+                        
+                        if(layMax.find(glayer) == layMax.end()){
+                            layMax.emplace(glayer,rnaNum);
+                        }else{
+                            if(rnaNum > layMax[glayer]){
+                                layMax[glayer] = rnaNum;
+                            }
+                        }
+                    }
+                    //
+                    if(! layMax.empty()){
+                        int tnum = 0;
+                        for(auto &itm : layMax){
+                            layCum.emplace(itm.first,tnum+1);
+                            tnum += itm.second + 1;
+                        }
+                        //
+                        for(size_t j = sPos; j < k; ++j){
+                            int tlayer = layCum[layVec[j - sPos]];
+                            out<<tchr<<"\t"<<chrGene[j].start<<"\t"<<chrGene[j].end<<"\t"<<chrGene[j].id<<"\t"<<chrGene[j].name<<"\t"<<chrGene[j].strand<<"\t"<<tlayer<<"\t0"<<endl;
+                            //
+                            if(gmap.find(chrGene[j].id) != gmap.end()){
+                                string preID = "";
+                                for(GeneInfo &tinfo : gmap[chrGene[j].id]){
+                                    if(tinfo.id != preID){
+                                        tlayer++;
+                                    }
+                                    out<<tchr<<"\t"<<tinfo.start<<"\t"<<tinfo.end<<"\t"<<tinfo.id<<"\t"<<tinfo.name<<"\t"<<tinfo.strand<<"\t"<<tlayer<<"\t"<<(int)tinfo.num<<endl;
+                                    preID = tinfo.id;
+                                } 
+                            }
+                        }
+                    }
                 }
                 //
                 sPos = k;
                 maxLayer = 1;
                 layVec.clear();
                 layVec.push_back(1);
-                overlap = false;
             }
             
         }
-        //
-        for(size_t j = sPos; j < chrGene.size(); ++j){
-            out<<tchr<<"\t"<<chrGene[j].start<<"\t"<<chrGene[j].end<<"\t"<<chrGene[j].id<<"\t"<<chrGene[j].name<<"\t"<<chrGene[j].strand<<"\t"<<layVec[j - sPos]<<endl;
+        // last gene has not been output, whether it has a overlap with previous genes
+        if(! chrGene.empty()){
+            map<int,int> layMax, layCum;
+            for(size_t p = sPos; p < chrGene.size(); ++p){                    
+                int rnaNum = rnaCtmap[chrGene[p].id];
+                int glayer = layVec[p - sPos];
+                
+                if(layMax.find(glayer) == layMax.end()){
+                    layMax[glayer] = rnaNum;
+                }else{
+                    if(rnaNum > layMax[glayer]){
+                        layMax[glayer] = rnaNum;
+                    }
+                }
+            }
+            //
+            if(! layMax.empty()){
+                int tnum = 0;
+                for(auto &itm : layMax){
+                    layCum.emplace(itm.first,tnum+1);
+                    tnum += itm.second + 1;
+                }
+                //
+                for(size_t j = sPos; j < chrGene.size(); ++j){
+                    int tlayer = layCum[layVec[j - sPos]];
+                    out<<tchr<<"\t"<<chrGene[j].start<<"\t"<<chrGene[j].end<<"\t"<<chrGene[j].id<<"\t"<<chrGene[j].name<<"\t"<<chrGene[j].strand<<"\t"<<tlayer<<"\t0"<<endl;
+                    //
+                    if(gmap.find(chrGene[j].id) != gmap.end()){
+                        string preID = "";
+                        for(GeneInfo &tinfo : gmap[chrGene[j].id]){
+                            if(tinfo.id != preID){
+                                tlayer++;
+                            }
+                            out<<tchr<<"\t"<<tinfo.start<<"\t"<<tinfo.end<<"\t"<<tinfo.id<<"\t"<<tinfo.name<<"\t"<<tinfo.strand<<"\t"<<tlayer<<"\t"<<(int)tinfo.num<<endl;
+                            preID = tinfo.id;
+                        }
+                    }
+                }
+            }
         }
         
     }
@@ -264,8 +465,6 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
     out.close();
 }
 
-// ldChrFile
-// if(ldChrFile){ ldSet } if(ldSet)
 void getDxRef(string &chrListFile,map<string,int> &refChrMap){
     ifstream in(chrListFile.c_str());
     int i = 0;
@@ -283,6 +482,9 @@ void getDxRef(string &chrListFile,map<string,int> &refChrMap){
     }
 }
 
+/*
+    Gene name is used as priority. When gene name does not exist gene ID is used.
+*/
 void getGeneMap(string &geneFile,map<string,int> &refChrMap,map<int,vector<SimGene> > &allGeneLay){
     ifstream gf(geneFile.c_str());
     if(! gf){
@@ -291,15 +493,14 @@ void getGeneMap(string &geneFile,map<string,int> &refChrMap,map<int,vector<SimGe
     }
     string line;
     stringstream strStream;
-    //[start end layer name]
     string tchr,id,name;
     int start,end;
     char strand;
-    int layer;
     string preChr = "";
-    string sName;
     bool flag = false;
     int chrpos = 0;
+    int layer;
+    int num;
     while(getline(gf,line)){
         strStream << line;
         strStream >> tchr;
@@ -309,22 +510,49 @@ void getGeneMap(string &geneFile,map<string,int> &refChrMap,map<int,vector<SimGe
         strStream >> name;
         strStream >> strand;
         strStream >> layer;
+        strStream >> num;
         strStream.clear();
         strStream.str("");
-        if(name != "unknown"){
-            sName = name;
-        }else{
-            sName = id;
+        
+        if(num > 255){
+            cerr<<"Warning: exon count > 255. The item ("<<tchr<<" "<<start<<" "<<end<<" "<<id<<") will be skipped."<<endl;
+            continue;
         }
-        SimGene tsim = {start,end,sName,(uint8_t)layer,strand};
+        if(layer > 255){
+            cerr<<"Warning: layer > 255. Too many RNA or too many overlapping genes. The item ("<<tchr<<" "<<start<<" "<<end<<" "<<id<<") will be skipped."<<endl;
+            continue;
+        }
+        SimGene tsim;
+        tsim.start = start;
+        tsim.end = end;
+        tsim.strand = strand;
+        tsim.layer = (uint8_t)layer;
+        tsim.num = (uint8_t)num;
+        
+        if(name == "E" || name == "C"){
+            tsim.type = name[0];
+            tsim.name = id;
+        }else{
+            tsim.type = 'G';
+            if(name == "U"){
+                tsim.name = id;
+            }else{
+                tsim.name = name;   
+            }
+        }
+
         if(tchr != preChr){
             if(refChrMap.find(tchr) != refChrMap.end()){
                 flag = true;
                 chrpos = refChrMap[tchr];
                 //
-                vector<SimGene> tvec;
-                tvec.push_back(tsim);
-                allGeneLay.emplace(chrpos,tvec);
+                if(allGeneLay.find(chrpos)  != allGeneLay.end()){
+                    allGeneLay[chrpos].push_back(tsim);
+                }else{
+                    vector<SimGene> tvec;
+                    tvec.push_back(tsim);
+                    allGeneLay.emplace(chrpos,tvec);
+                }
             }else{
                 flag = false;
             } 
@@ -389,14 +617,21 @@ void indexNodeGene(string &rndFile,string &rndDxFile,string &geneFile,string &ch
     }
     //
     int oneSize = sizeof(OneRange);
-    //int llSize = sizeof(long long);
-    //int dxByte = intSize + (intSize + crSize) * refChrMap.size();
-    long long ndByte = 0,ndUnit = sizeof(NodeGene);
+    long long ndByte = 0,ndUnit = sizeof(GeneNode);
     for(int xchr : allchr){
         ChrRange cRange = chrRanMap[xchr];
         //
-        //vector<OneRange> acrVec;
-        //acrVec.reserve(cRange.ranNum);
+        vector<RanPos> acrVec;
+        acrVec.reserve(cRange.ranNum);
+        int chrNdNum = 0;
+        for(int k = 0; k < cRange.ranNum; ++k){
+            OneRange aRange;
+            rxfh.read((char *)&aRange,oneSize);
+            RanPos tpos = {aRange.ranStart,aRange.ranEnd};
+            acrVec.push_back(tpos);
+            chrNdNum += aRange.ranNum;
+        }
+        //
         bool fdChr = false;
         map<int,vector<SimGene> >::iterator it;
         it = allGeneLay.find(xchr);
@@ -405,92 +640,137 @@ void indexNodeGene(string &rndFile,string &rndDxFile,string &geneFile,string &ch
         }else{
             cout<<"Warning: reference chromosome in the 'chr.list' can't be found in the annotation file. "<<xchr<<endl;
         }
-        size_t sPos = 0;
-        for(int k = 0; k < cRange.ranNum; ++k){
-            OneRange aRange;
-            rxfh.read((char *)&aRange,oneSize);
-            // one region
-            int num = 0;
-            for(int j = 0; j < aRange.ranNum; ++j){
-                int node,ndStart,ndEnd;
-                rnfh.read((char *)&node,intSize);
-                rnfh.read((char *)&ndStart,intSize);
-                rnfh.read((char *)&ndEnd,intSize);
-                // search gene
-                if(fdChr){
-                    bool flag = true;
-                    size_t fir = sPos;
-                    for(size_t i = sPos; i < (it->second).size(); ++i){
-                        if((it->second)[i].start < ndStart){
-                            if((it->second)[i].end >= ndStart){
-                                if(flag){
-                                    fir = i;
-                                    flag = false;
-                                }
-                                //
-                                NodeGene ndGene;
-                                ndGene.node = node;
-                                ndGene.reStart = 0;
-                                ndGene.layer = (it->second)[i].layer;
-                                ndGene.strand = (it->second)[i].strand;
-                                
-                                if((it->second)[i].end <= ndEnd){
-                                    ndGene.len = (it->second)[i].end - ndStart + 1;
-                                }else{
-                                    ndGene.len = ndEnd - ndStart + 1;
-                                }
-                                
-                                ndGene.name[FIELDSIZE-1] = '\0';
-                                strncpy(ndGene.name,(it->second)[i].name.c_str(),FIELDSIZE-1);
-                                
-                                ov.write((char *)&ndGene,ndUnit);
-                                ++num;
+        //unordered_set<int> ntNode;
+        vector<RNode> chrRnode;
+        chrRnode.reserve(chrNdNum);
+        for(int j = 0; j < chrNdNum; ++j){
+            int node,ndStart,ndEnd;
+            rnfh.read((char *)&node,intSize);
+            rnfh.read((char *)&ndStart,intSize);
+            rnfh.read((char *)&ndEnd,intSize);
+            //
+            RNode trnode = {node,ndStart,ndEnd};
+            chrRnode.push_back(trnode);
+            //ntNode.insert(node);
+        }
+        //--------------------------
+        int sPos = 0;
+        size_t aPos = 0;
+        if(fdChr){
+            map<size_t,vector<GeneNode> > gdCutMap;
+            //
+            for(size_t i = 0; i < (it->second).size(); ++i){
+                GeneNode gnode;
+                bool fnd1 = false, fnd2 = false;
+                gnode.node1 = -1;
+                gnode.node2 = -1;
+                // feature boundary
+                for(int x = sPos; x < chrNdNum; ++x){
+                    if((it->second)[i].start >= chrRnode[x].start){
+                        if((it->second)[i].start <= chrRnode[x].pend){
+                            gnode.node1 = chrRnode[x].node;
+                            gnode.reStart1 = (it->second)[i].start - chrRnode[x].start;
+                            fnd1 = true;
+                            //
+                            if((it->second)[i].type == 'G'){
+                                sPos = x;
                             }
-                            //else continue
-                        }else{
-                            if((it->second)[i].start <= ndEnd){
-                                if(flag){
-                                    fir = i;
-                                    flag = false;
-                                }
-                                //
-                                NodeGene ndGene;
-                                ndGene.node = node;
-                                ndGene.reStart = (it->second)[i].start - ndStart;
-                                ndGene.layer = (it->second)[i].layer;
-                                ndGene.strand = (it->second)[i].strand;
-                                
-                                if((it->second)[i].end <= ndEnd){
-                                    ndGene.len = (it->second)[i].end - (it->second)[i].start + 1;
-                                }else{
-                                    ndGene.len = ndEnd - (it->second)[i].start + 1;
-                                }
-                                
-                                ndGene.name[FIELDSIZE-1] = '\0';
-                                strncpy(ndGene.name,(it->second)[i].name.c_str(),FIELDSIZE-1);
-                                
-                                ov.write((char *)&ndGene,ndUnit);
-                                ++num;
-                            }else{
-                                if(flag){
-                                    fir = i;
-                                    flag = false;
-                                }
-                                //
+                            //
+                            if((it->second)[i].end <= chrRnode[x].pend){
+                                gnode.node2 = chrRnode[x].node;
+                                gnode.reStart2 = (it->second)[i].end - chrRnode[x].start;
+                                fnd2 = true;
                                 break;
+                            }
+                        }else{
+                            // check
+                            if((it->second)[i].type == 'G'){
+                                sPos = x + 1;
+                            }
+                        }
+                    }else{
+                        if((it->second)[i].end >= chrRnode[x].start){
+                            if((it->second)[i].end <= chrRnode[x].pend){
+                                gnode.node2 = chrRnode[x].node;
+                                gnode.reStart2 = (it->second)[i].end - chrRnode[x].start;
+                                fnd2 = true;
+                                break;
+                            }
+                        }else{
+                            break;
+                        }
+                    
+                    }
+                }
+                //
+                if(fnd1 || fnd2){
+                    gnode.name[FIELDSIZE-1] = '\0';
+                    strncpy(gnode.name,(it->second)[i].name.c_str(),FIELDSIZE-1);
+                    gnode.layer = (it->second)[i].layer;
+                    gnode.strand = (it->second)[i].strand;
+                    gnode.type = (it->second)[i].type;
+                    gnode.num = (it->second)[i].num;
+                    // assign feature to segmentation
+                    for(size_t k = aPos; k < acrVec.size(); ++k){
+                        if((it->second)[i].start < acrVec[k].start){
+                            if((it->second)[i].end >= acrVec[k].start){
+                                if(gdCutMap.find(k) == gdCutMap.end()){
+                                    vector<GeneNode> gvec;
+                                    gvec.push_back(gnode);
+                                    gdCutMap.emplace(k,gvec);
+                                }else{
+                                    gdCutMap[k].push_back(gnode);
+                                }
+                            }else{
+                                break;
+                            }
+                        }else{
+                            if((it->second)[i].start <= acrVec[k].pend){
+                                if(gdCutMap.find(k) == gdCutMap.end()){
+                                    vector<GeneNode> gvec;
+                                    gvec.push_back(gnode);
+                                    gdCutMap.emplace(k,gvec);
+                                }else{
+                                    gdCutMap[k].push_back(gnode);
+                                }
+                            }else{
+                                if((it->second)[i].type == 'G'){
+                                    aPos = k + 1;
+                                }
                             }
                         }
                     }
-                    //
-                    sPos = fir;
                 }
             }
             //
-            aRange.offByte = ndByte;
-            aRange.ranNum = num;
-            odx.write((char *)&aRange,oneSize);
-            //
-            ndByte += ndUnit * num;
+            
+            for(size_t k = 0; k < acrVec.size(); ++k){
+                int num = 0;
+                if(gdCutMap.find(k) != gdCutMap.end()){
+                    for(GeneNode &gd : gdCutMap[k]){
+                        ov.write((char *)&gd,ndUnit);
+                    }
+                    num = gdCutMap[k].size();
+                }
+                OneRange aRange;
+                aRange.ranStart = acrVec[k].start;
+                aRange.ranEnd = acrVec[k].pend;
+                aRange.offByte = ndByte;
+                aRange.ranNum = num;
+                odx.write((char *)&aRange,oneSize);
+                //
+                ndByte += ndUnit * num;
+            }
+        }else{
+            for(size_t k = 0; k < acrVec.size(); ++k){
+                int num = 0;
+                OneRange aRange;
+                aRange.ranStart = acrVec[k].start;
+                aRange.ranEnd = acrVec[k].pend;
+                aRange.offByte = ndByte;
+                aRange.ranNum = num;
+                odx.write((char *)&aRange,oneSize);
+            }
         }
     }
     
@@ -511,10 +791,6 @@ void dxRefNodeGene(char *inGFF,char *chrMapFile,string &upDir){
     string gDxFile = upDir + "/gene.ref.bdx";
     
     string chrListFile = upDir + "/chr.list";
-    //string chrListFile = upDir + "/load.chr.list";
-    //if(access(chrListFile.c_str(),F_OK) != 0){
-    //    chrListFile = upDir + "/chr.list";
-    //}
     
     //if(access(geneFile.c_str(),F_OK) != 0){
         reduceGFF(inGFF,chrMapFile,geneFile);
@@ -525,16 +801,11 @@ void dxRefNodeGene(char *inGFF,char *chrMapFile,string &upDir){
 // Chr start end feature strand 
 void addRef_usage(){
     cout<<"Usage:   GraphAnno addRef --inGFF <gff_file> --chrTrans <name_trans_file> --upDir <upload_dir>"<<endl;
-    cout<<"--inGFF       <File>    Input GFF file."<<endl;
-    //  To Do 
-/*    
-    cout<<"--refAnno     <File>    Create files for gene track plot from this file instead of GFF file."
-                                   "Five columns separated by whitespaces for each line (chromosome/contig name, start, end, feature, strand)."<<endl;
-*/                                   
+    cout<<"--inGFF       <File>    Input GFF file."<<endl;                                  
     
     cout<<"--chrTrans    <File>    Input file containing two columns separated by whitespaces for each line (chromosome/contig name in GFF file and chromosome/contig name in Graph file)."
                                    "This file is used to make the chromosome/contig names in GFF file matching that in graph file."
-                                   "If chromosome name transformation is not needed this file can be ignored."<<endl;                                 
+                                   "If chromosome name transformation is not needed this file can be ignored."<<endl;                                  
     
     cout<<"--upDir       <Dir>     'upload' directory which including files generated by 'gfa2view' or 'vrpg_preprocess.py'."<<endl;
 }
