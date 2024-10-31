@@ -22,5 +22,6 @@ urlpatterns = [
     path('app/vrpg/',views.index),
     path('app/vrpg/init/',views.initGraph),
     path('app/vrpg/move/',views.showGraph),
+    path('app/vrpg/seq2map/',views.seqQuery),
     path('app/vrpg/nodeInfo/',views.searchNode),
 ]
