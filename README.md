@@ -8,16 +8,9 @@ an interactive web viewer for reference-projected pangenome graph
 
 # Description  
 
-VRPG is an interactive web viewer for reference-projected pangenome graph. It naturally supports graphs in reference Graph Fragment Assembly (<a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a>) format and for graphs in Graph Fragment Assembly (<a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a>) format VRPG provides a command-line tool named gfa2view to transform the GFA files to a rGFA-like format. VRPG implements a block index system to support navigating the large and complex pangenome upon hundreds of whole genome assemblies in real time. The information about coordinate and copy number of each segment among the graph was stored in an efficient way and can be queried with almost no delay. VRPG aligns the reference nodes along the center line of the viewport, which make the reference genome easy to be recognized. VRPG also provides an intuitive way for genome comparison by highlighting the path of a particular assembly and its orientation on the rendered graph. A website shipping four pangenome graphs (one for yeast and three for human) is available at https://www.evomicslab.org/app/vrpg/. The Saccharomyces cerevisiae pangenome graph was generated using 163 assemblies and The three Homo sapiens pangenome graphs were constructed by <a href="https://humanpangenome.org/">HPRC</a>  by three different pipelines (Minigraph, Minigraph-CACTUS and PGGB) upon the same dataset with 90 whole genome assemblies. Users can also deploy the web application and view their own data.  
+VRPG is an open-source web application for fast access and interactive analysis of pangenome regions. Both <a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a> and <a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a> pangenome graphs are supported. VRPG implements a block index system to support navigating the large and complex pangenomes created based on hundreds of whole genome assemblies, fluently. VRPG layouts the graph with maintaining the linearity of the primary reference. This makes VRPG capable of connecting the abundant genome annotation data based on the coordinate system of the primary reference to the graph. VRPG provides plenty of functions to help users to explore and understand the pangenome graph interactively, such as highlighting one or multiple assembly paths in the graph, finding the node depth, searching a sequence, simplifying the pangenome graph. We also provide an example website at https://www.evomicslab.org/app/vrpg/. Through the example website users can visit most of regions of the human pangenomes created by HPRC based on 90 assemblies and the saccharomyces cerevisiae pangenome created by <a href="https://www.evomicslab.org/">Evomics Lab</a> based on 163 assemblies on-the-fly.
 
-**Note:** 
-The released version 0.1.3 is not the latest. The latest version of VRPG added a new tool named 'GraphAnno', which can be used to create indexed annotation files for reference gene track plot and interactive view of genes which a node overlaps with.
-
-For graph in GFA format the overlap field in link line (overlap between segments)  should be specified (in graphs created by Minigraph-CACTUS and PGGB the overlap is generally specified as 0M), or the value will be set to 0 by VRPG-gfa2view. Although whether the overlap is specified doesn't affect the visualization of the graph it may affect the determination of the coordinate of the segment. 
-
-The graphs created by Minigraph-CACTUS and PGGB include large amounts of SNPs and INDELs. The structure variations may be covered up by these small variants. VRPG (version >=0.1.3)  supplied functions to simplify the graph, i.e. remove nodes related to the small variants (with size < 50 bp). The simplification related option 'non-ref' in combobox means simplifying non-reference nodes. 'all node' means simplifying all nodes including reference and non-reference. 'none' means not simplifying the graph. Now VRPG can be used to visualize variants at different scales and find their coordinates relative to the reference  conveniently. Furthermore, the function that serves several pangenomes were added back in the latest version of VRPG.
-
-For cola layout the node size is more proportional to the segment sequence size. But it may take a little longer time to stabilize. When the number of nodes in a window is small cola layout can be tested.  
+For detailed information about VRPG functions, please read the document at https://evomicslab.org/app/vrpg/manual/.
 
 # Installation  
 Python3 (>=3.6) and pip environment are required.  
@@ -39,17 +32,25 @@ sh host.jslib.local.sh local
 # switch to load packages from CDN
 sh host.jslib.local.sh cdn
 
+# install the dependence for sequence-to-graph mapping
+cd VRPG
+mkdir bin
+cd bin
+wget -c https://github.com/lh3/minigraph/releases/download/v0.20/minigraph-0.20_x64-linux.tar.bz2
+tar -jxf minigraph-0.20_x64-linux.tar.bz2
+mv minigraph-0.20_x64-linux/minigraph ./
+
 ```
 
 # Prepare your data  
 
-The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed. When indexing the graph users can define the search depth (VRPG version > 0.1.2) by option ‘--xDep’. In general, the default value can work well. A small value for this option may cause some big bubbles on the rendered graph uncompleted. Owing to the linearity of the reference genome on graph rendered by VRPG the uncompleted bubble and its approximate location relative to the reference genome can still be recognized generally. 
+The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed. When indexing the graph users can define the search depth (VRPG version > 0.1.2) by option ‘--xDep’. In general, the default value can work well. A small value for this option may cause some big bubbles on the rendered graph uncompleted. Owing to the linearity of the primary reference genome on graph rendered by VRPG the uncompleted bubble and its approximate location relative to the primary reference genome can still be recognized generally. 
 
 ## rGFA format graph  
 
 ### Pangenome graph already exists  
 
-The assemblies to graph mapping files are required. If these files do not exist the assembly can't be highlighted in the drawing. These files can be generated by minigraph by using command '-cxasm --vc'. Then run the following command to get files required by VRPG.  
+The assemblies to graph mapping files are required. If these files do not exist the assembly can't be highlighted in the graph. These files can be generated by minigraph by using command '-cxasm --vc'. Then run the following command to get files required by VRPG.  
 
 ```
 Python script/vrpg_preprocess.py --rGFA all.gfa --gafList gaf_file.list --outDir out_folder --index
@@ -105,15 +106,30 @@ If only a particular set of reference chromosomes or contigs are considered for 
 ## Annotation
 
 ```
-# Create files for reference gene track plot
+# Add primary reference gene track from GFF file
+# The GFF file must correspond to the primary reference
 # run 'GraphAnno addRef --help' for help 
 GraphAnno addRef --inGFF gffFile --chrTrans chrTransFile --upDir upload
 
-# Create files for interactive view of genes with which a node overlaps
+# Add annotation track from BED file
+# About the BED format, please read https://asia.ensembl.org/info/website/upload/bed.html
+# Track line is needed for adding annotation track
+GraphAnno addBed --inBed track.bed --upDir upload
+
+# Add annotation for all nodes (reference and non-reference). By clicking on the node the genes that the node overlaps with will be showed in the 'Node information' viewport. 
 # run 'GraphAnno nodeGene --help' for help
 GraphAnno nodeGene --gffList gffListFile --upDir upload
 
 ```
+
+## Node sequence
+
+```
+# Extract node sequence and build index
+nodeSeq --gfaFile graph.gfa --upDir upload
+
+```
+
 
 # Execution  
 ## Local server or personal computer with Linux/Ubuntu operating system  
@@ -146,8 +162,8 @@ Please make sure the firewall is closed. Then open <a>http:\<IP of server\>:8000
 If you are familiar with nginx or apache you can also deploy VRPG by using any of them.
 
 # Tips  
-1. The edge can be highlighted by clicking on it. Remove the highlight by just click on it again.
-2. For graphs generated by PGGB the duplicate sequence in assigned reference assembly may be collapsed. For the collapsed region new nodes and edges will be inserted into the graph by vrpg to make the reference keeping coordinate system same to the traditional single linear reference. But the new nodes and edges will be not inserted into the path. If there are only reference nodes in a region and the highlighted reference path don’t pass these nodes the region may indicate a collapse. Another feature of these regions is that the numeric identifier of the segment that the node represents is generally much larger than the identifiers of the reference segments in the surrounding region.  
+1. The edge can be highlighted by clicking on it. Remove the highlight by just clicking on it again.
+2. For graphs generated by PGGB the duplicate sequence in the primary reference assembly may be collapsed. For the collapsed region new nodes and edges will be inserted (into the graph, add new L line and S line) by vrpg to make the primary reference maintain the linearity. But no nodes and edges will be inserted into the path (P line in the graph). If there are only reference nodes in a visited region and the highlighted reference path doesn’t pass these nodes the region may indicate a collapse. Another feature of these regions is that the numeric identifier of the node is generally much larger than the identifiers of the node in the flanking regions.  
 <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/ref_collapse3.png"/>
 3. VRPG uses 1-based coordinate system, i.e. coordinate is denoted as [start,end]. If you are interest in a particular segment (node) and the genome annotation file (GFF3 format) is available you can use <a href="https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html">bedtools</a> and the coordinate displayed by VRPG (within Segment Source:) to find the annotation of the segment conveniently. For example:
   
