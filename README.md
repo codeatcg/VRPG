@@ -3,7 +3,8 @@ an interactive web viewer for reference-projected pangenome graph
 
 |  |  |
 | --- | --- |
-| <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window.png" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description.png" width=400px/> |
+| <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/window.svg" width=600px/> | <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/description.svg" width=400px/> |
+
 
 # Description  
 
