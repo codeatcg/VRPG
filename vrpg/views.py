@@ -316,7 +316,11 @@ def nodeGene(request):
     para = request.POST
     species = para.get("species")
     node = para.get('seg')
-    dbDir = os.path.join(BinDir,"upload",species)
+    dbDir = ""
+    if species == '0':
+        dbDir = os.path.join(BinDir,"upload")
+    else:
+        dbDir = os.path.join(BinDir,"upload",species)
     dbNodeFile = os.path.join(dbDir,"node.sort.bw")
     
     sepFile = os.path.join(dbDir,"sep.info")
@@ -366,7 +370,11 @@ def searchNode(request):
     species = para.get("species")
     node = para.get('seg')
     #
-    dbDir = os.path.join(BinDir,"upload",species)
+    dbDir = ""
+    if species == '0':
+        dbDir = os.path.join(BinDir,"upload")
+    else:
+        dbDir = os.path.join(BinDir,"upload",species)
     dbNodeFile = os.path.join(dbDir,"node.sort.bw")
     dbCovFile = os.path.join(dbDir,"cover.bw")
     asmListFile = os.path.join(dbDir,"asm.list")
@@ -485,7 +493,7 @@ def taskQuery(species):
                 
 def createTask(species):
     preDir = ""
-    if species == "default":
+    if species == "0":
         preDir = os.path.join(BinDir,"upload","mapping")
     else:
         preDir = os.path.join(BinDir,"upload",species,"mapping")
@@ -583,7 +591,7 @@ def seqQuery(request):
     
     upDir = os.path.join(BinDir,"upload")
     preDir = upDir
-    if species != "default":
+    if species != "0":
         preDir = os.path.join(upDir,species)
     
     gfaFile = ""
