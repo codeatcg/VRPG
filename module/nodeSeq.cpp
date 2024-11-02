@@ -21,8 +21,8 @@ string revComSeq(string &seq,map<char,char> &trans){
     int n = seq.size() - 1;
     for(int pos = n; pos >= 0; pos--){
         if(trans.find(seq[pos]) == trans.end()){
-            cerr<<"Error: invalid character in the sequence. "<<seq[pos]<<endl;
-            exit(1);
+            cerr<<"Warning: invalid character in the sequence. "<<seq[pos]<<endl;
+            //exit(1);
         }else{
             rvstr += trans[seq[pos]];
         }
