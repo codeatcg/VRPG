@@ -18,8 +18,8 @@ typedef struct{
 
 string revComSeq(string &seq,map<char,char> &trans){
     string rvstr = "";
-    size_t n = seq.size() - 1;
-    for(size_t pos = n; pos >= 0; pos--){
+    int n = seq.size() - 1;
+    for(int pos = n; pos >= 0; pos--){
         if(trans.find(seq[pos]) == trans.end()){
             cerr<<"Error: invalid character in the sequence. "<<seq[pos]<<endl;
             exit(1);
@@ -111,8 +111,12 @@ void node2seq(char *gfaFile,string &upDir){
             if(flipSet.empty()){
                 ofh << seq <<endl;
             }else{
-                string revSeq = revComSeq(seq,trans);
-                ofh << revSeq <<endl;
+                if(flipSet.find(tnode) != flipSet.end()){
+                    string revSeq = revComSeq(seq,trans);
+                    ofh << revSeq <<endl;
+                }else{
+                    ofh << seq <<endl;
+                }
             }
             
             cumLen += tgLen + 2;
