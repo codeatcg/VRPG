@@ -613,8 +613,8 @@ def seqQuery(request):
     
     queryMap(minigraph,gfaFile,taskDir)
     map2path(taskDir)
-    #gaf2rbed = os.path.join(BinDir,"module","gaf2rbed")
-    gaf2rbed = os.path.join(BinDir,"bin","gaf2rbed")
+    gaf2rbed = os.path.join(BinDir,"module","gaf2rbed")
+    #gaf2rbed = os.path.join(BinDir,"bin","gaf2rbed")
     map2Loci(preDir,gaf2rbed,edgeFile,taskDir)
     #return taskDir
     locInfo = readQyLoci(taskDir)
