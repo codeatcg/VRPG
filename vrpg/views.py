@@ -13,7 +13,8 @@ BinDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BinDir = BinDir
 def index(request):
     allFiles = os.listdir(os.path.join(BinDir,"upload"))
-    allDir = [i  for i in allFiles if os.path.isdir(os.path.join(BinDir,"upload",i)) and i != "path" and i != "anno"]
+    dDir = {"path","anno","mapping"}
+    allDir = [i  for i in allFiles if os.path.isdir(os.path.join(BinDir,"upload",i)) and i not in dDir]
     return render(request,"vrpg/index.html",{"folder":allDir})
 
 def showInfo(request):
