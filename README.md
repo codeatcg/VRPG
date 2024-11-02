@@ -146,7 +146,7 @@ Django version 3.2.4, using settings 'primers_project.settings'
 Starting development server at http://127.0.0.1:8000/  
 ```
 
-3. Then open http://127.0.0.1:8000/app/vrpg/ in your browser and you will see the drawing of the pangenome graph.  
+3. Open http://127.0.0.1:8000/app/vrpg/ in your browser and visit any pangenome regions you are interested in.  
 
 **Note**, For large pangenome graph it's better to prepare data in a computing server and then transfer the data to local 'upload' folder of VRPG.
 
