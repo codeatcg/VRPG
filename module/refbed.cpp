@@ -54,7 +54,7 @@ int getTrackLayer(int kLayer,int layStart,vector<string> &chrVec,map<string,vect
         bool overlap = false;
         vector<int> layVec;        
         for(size_t k = 0; k < chrGene.size(); ++k){
-            // Does current gene has an overlap with previous genes ?
+            // Does the focused gene have an overlap with previous genes ?
             // no overp; new start
             vector<int> layerSta(maxLayer,0);
             overlap = false;
@@ -85,6 +85,7 @@ int getTrackLayer(int kLayer,int layStart,vector<string> &chrVec,map<string,vect
                     }
                 }
             }else{
+                //   pile up genes
                 //   -------       ---------
                 //       ---------------------
                 for(size_t j = sPos; j < k; ++j){
