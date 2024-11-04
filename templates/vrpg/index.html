@@ -754,7 +754,7 @@
                     exEnd += ra * 2;
                     //
                     if(drawData.eFlagVec[tcNum] == '2' || drawData.eFlagVec[tcNum] == '3'){
-                        exonLink.push([[gpMin,exY2],[drawData.ndExonPos[0],exY2]]);
+                        exonLink.push([[gpMin,exY2],[drawData.ndExonPos[exStart],exY2]]);
                         exStrand.push(drawData.eStrandVec[cumA]);
                     }
                     // link -- previous end to next start
