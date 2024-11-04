@@ -42,7 +42,7 @@ typedef struct{
     uint16_t layer;
 } SimBed;
 
-//(layStart,)
+//By default, features with layer > 50 for each track will not be output. Change the default behaviour by '--layer'
 int getTrackLayer(int kLayer,int layStart,vector<string> &chrVec,map<string,vector<BedInfo> > &allChrGene,ofstream &out){
     int gLayMax = 1;
     for(string &tchr : chrVec ){
@@ -54,7 +54,7 @@ int getTrackLayer(int kLayer,int layStart,vector<string> &chrVec,map<string,vect
         bool overlap = false;
         vector<int> layVec;        
         for(size_t k = 0; k < chrGene.size(); ++k){
-            // Is current gene has a overlap with previous genes ?
+            // Does current gene has an overlap with previous genes ?
             // no overp; new start
             vector<int> layerSta(maxLayer,0);
             overlap = false;
