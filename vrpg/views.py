@@ -278,7 +278,7 @@ def initGraph(request):
     sim = True
     refSim = False
     
-    queryDep = 15
+    queryDep = 10
     '''
     depFile = os.path.join(upDir,"index.dep")
     if os.path.exists(depFile):
