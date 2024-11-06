@@ -7,10 +7,10 @@ CXXFLAG = -O3 -Wall -std=c++11 -pthread
 LIBS = -lz
 
 OBJ1 = gfa2view.o minipg.o gz.o
-OBJ2 = anno.o refgene.o ghAnno.o gz.o
+
 OBJ2 = anno.o refgene.o refbed.o ghAnno.o gz.o 
 OBJ3 = gaf2rbed.o
-OBJ4 = nodeSeq.o
+OBJ4 = nodeSeq.o gz.o
 
 all : gfa2view GraphAnno gaf2rbed nodeSeq $(PYSO)
 
@@ -24,7 +24,7 @@ gaf2rbed : $(OBJ3)
 	$(CXX) $(CXXFLAG) $(OBJ3) -o $@
 
 nodeSeq : $(OBJ4)
-	$(CXX) $(CXXFLAG) $(OBJ4) -o $@
+	$(CXX) $(CXXFLAG) $(OBJ4) -o $@ $(LIBS)
     
 %.o : %.cpp
 	$(CXX) $(CXXFLAG) -c $< -o $@ $(LIBS)
