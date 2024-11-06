@@ -8,6 +8,7 @@
 #include <map>
 #include <unordered_set>
 #include <string.h>
+#include "gz.h"
 
 using namespace std;
 
@@ -57,7 +58,7 @@ void node2seq(char *gfaFile,string &upDir){
         }
         in.close();
     }
-    ifstream gfh(gfaFile);
+    igzstream gfh(gfaFile);
     if(! gfh){
         cerr<<"Error: file open failed. "<<gfaFile<<endl;
         exit(1);
