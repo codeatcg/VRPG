@@ -2,14 +2,14 @@
 # rGFA graph  
 ## Pangenome graph not exists  
 
-1. Prepare assembly list  
+1. Prepare assemblies 
 
 ```
 sh download.testData.sh
 
 sh prepare.asm.sh
 ```
-2. Construct pangenome graph and build index  
+2. Construct a pangenome graph and build index  
 
 ```
 python3 ../script/vrpg_preprocess.py --minigraph ../bin/minigraph --asmList build.asm.txt --index --xDep 50 --outDir results
@@ -80,19 +80,84 @@ echo "DBVPG6044#HP0 mapping/DBVPG6044.unstable.gaf NA" >> mapping/gaf.list
 python ../script/vrpg_preprocess.py --gafList mapping/gaf.list --rGFA results/input.ref.gfa --outDir rGFA_upload --thread 5 --index --xDep 50
 ```
 
-Remaining steps are same as that on the condition that graph has not been constructed.  
+Remaining steps are same as that graph has not been constructed.  
  
 # GFA graph  
-1. Transform graph and build index  
+## Minitraph-Cactus graph  
+1.	Construct a pangenome graph by using Minitraph-Cactus  
 
-```  
-
-# designate the primary reference name. For example, designate the reference name as 'GRCh38#0'. Note that the name must exist in the graph.  
-
-../module/gfa2view --GFA graph.gfa --ref GRCh38#0 --outDir GFA_upload --index --range 2000 --thread 10
+The parameters and options used to construct the test graph may not be suitable for all cases. About how to construct a pangenome graph using Minigraph-Cacuts, please read the tutorial (https://github.com/ComparativeGenomicsToolkit/cactus/blob/master/doc/pangenome.md) of Minigraph-Cacuts.
 
 ```
-Remaining steps are same as that for rGFA graph.  
+# Assume that Minitraph-Cactus has been installed
+sh mc.genome.sh
+cactus-pangenome ./js mc.genome.txt --outDir mc --outName mc --reference SGDref --gfa
+
+```
+
+2. Transform and index the graph  
+
+```
+../module/gfa2view --GFA mc/mc.gfa.gz --ref SGDref#0 --outDir mc_upload --index --range 2000 --thread 5
+
+```
+
+3. Extract sequence and add annotation tracks
+
+```
+sh mc.gff.sh
+
+../module/nodeSeq --gfaFile mc/mc.gfa.gz --upDir  mc_upload/upload
+../module/GraphAnno addRef --inGFF GCF_000146045.2_R64_genomic.gff.gz --upDir mc_upload/upload
+../module/GraphAnno nodeGene --gffList mc.gff.txt --upDir mc_upload/upload
+../module/GraphAnno addBed --inBed test.track.bed --upDir mc_upload/upload
+
+```
+
+4. Migrate data
+
+```
+mv mc_upload/upload ../upload/mc_graph
+```
+
+Other steps are similar to that for rGFA graph.  
+
+## PGGB graph  
+
+1. Construct a pangenome graph by using PGGB  
+
+```
+# Assume that fastix and pggb have been installed
+sh pggb.genome.sh
+pggb -i pggb_genome/all.fastix.fa -t 10 -p 95 -n 5 -k 23 -o pggb
+
+```
+2. Transform and index the graph  
+
+```
+# Please replace the * in 'all.fastix.fa.*.final.gfa' with actual file name
+../module/gfa2view --GFA pggb/all.fastix.fa.*.final.gfa --ref SGDref#1 --outDir pggb_upload --index --range 2000 --thread 5
+
+```
+
+3. Extract sequence and add annotation tracks
+
+```
+sh pggb.gff.sh
+
+../module/nodeSeq --gfaFile pggb/all.fastix.fa.9d96fe3.eb0f3d3.96c84fb.smooth.final.gfa --upDir pggb_upload/upload
+../module/GraphAnno addRef --inGFF GCF_000146045.2_R64_genomic.gff.gz --upDir pggb_upload/upload
+../module/GraphAnno nodeGene --gffList pggb.gff.txt --upDir pggb_upload/upload
+../module/GraphAnno addBed --inBed test.track.bed --upDir pggb_upload/upload
+```
+
+4. Migrate data  
+
+```  
+mv pggb_upload/upload ../upload/pggb_graph
+```
+
+Other steps are similar to that for rGFA graph.  
 
 
 
