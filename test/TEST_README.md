@@ -126,6 +126,8 @@ Other steps are similar to that for rGFA graph.
 
 1. Construct a pangenome graph by using PGGB  
 
+The parameters and options used to construct the test graph may not be suitable for all cases. About how to construct a pangenome graph using PGGB, please read the tutorial (https://github.com/pangenome/pggb) of PGGB.
+
 ```
 # Assume that fastix and pggb have been installed
 sh pggb.genome.sh
