@@ -105,7 +105,7 @@ If only a particular set of reference chromosomes or contigs are considered to v
 
 ## Annotation
 
-Overlapping annotation items are placed on separate layers. For gene annotation track the maximum number of layers allowed by VRPG is 255. For each track defined in BED file the maximum number of layers allowed by VRPG is 50 by default, which can be overridden by using option ‘--layer’.
+Overlapping annotation items are placed on separate layers. For gene annotation track the maximum number of layers allowed by VRPG is 255. For each track defined in a [BED](https://asia.ensembl.org/info/website/upload/bed.html) file the maximum number of layers allowed by VRPG is 50 by default, which can be overridden by using option ‘--layer’. Note: for track with 'score' column (total number of columns > 3) defined in a BED file, all the annotation items (including overlapping ones) will be placed on the same layer. To separate the overlapping items, please define the track with 3 columns. Currently, VRPG can utilize at most the first 6 columns of a track defined in a BED file and other columns will be ignored.
 
 ```
 # Add primary reference gene track from GFF file
@@ -114,7 +114,7 @@ Overlapping annotation items are placed on separate layers. For gene annotation 
 GraphAnno addRef --inGFF gffFile --chrTrans chrTransFile --upDir upload
 
 # Add annotation track from BED file
-# About the BED format, please read https://asia.ensembl.org/info/website/upload/bed.html
+# About the BED format, please refer to https://asia.ensembl.org/info/website/upload/bed.html
 # Track line is needed for adding annotation track
 GraphAnno addBed --inBed track.bed --upDir upload
 
