@@ -260,8 +260,8 @@ def initGraph(request):
     sChr = chrList["nameList"][0]
     sStart = 1
     sEnd = 10000
-    if os.path.exists(formFile):
-        sEnd = 1000
+    #if os.path.exists(formFile):
+    #    sEnd = 1000
     
     buFilt = 50
     ex = 1000000
