@@ -137,7 +137,7 @@ pggb -i pggb_genome/all.fastix.fa -t 10 -p 95 -n 5 -k 23 -o pggb
 2. Transform and index the graph  
 
 ```
-# Please replace the * in 'all.fastix.fa.*.final.gfa' with the actual file name
+# Please replace 'all.fastix.fa.*.final.gfa' with the actual file name
 ../module/gfa2view --GFA pggb/all.fastix.fa.*.final.gfa --ref SGDref#1 --outDir pggb_upload --index --range 2000 --thread 5 --xDep 100
 
 ```
@@ -147,7 +147,7 @@ pggb -i pggb_genome/all.fastix.fa -t 10 -p 95 -n 5 -k 23 -o pggb
 ```
 sh pggb.gff.sh
 
-# Please replace the * in 'all.fastix.fa.*.final.gfa' with the actual file name
+# Please replace 'all.fastix.fa.*.final.gfa' with the actual file name
 ../module/nodeSeq --gfaFile pggb/all.fastix.fa.*.final.gfa --upDir pggb_upload/upload
 ../module/GraphAnno addRef --inGFF GCF_000146045.2_R64_genomic.gff.gz --upDir pggb_upload/upload
 ../module/GraphAnno nodeGene --gffList pggb.gff.txt --upDir pggb_upload/upload
