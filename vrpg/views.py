@@ -211,9 +211,11 @@ def showGraph(request):
             if os.path.exists(covFile):
                 hnCov = qNodesCov(covFile,nodeVec,covNameFile,asm)
             else:
-                mm = minipg.QueryNode(upDir)
-                mm.queryAsmCov(nodeVec,asm)
-                hnCov = mm.ndCov
+                covFile = os.path.join(upDir,"cover.bw")
+                if os.path.exists(covFile):
+                    mm = minipg.QueryNode(upDir)
+                    mm.queryAsmCov(nodeVec,asm)
+                    hnCov = mm.ndCov
        
     graphInfo = {'nodes':draw_node,'links':draw_edge, 'genome':mp.genome,'nnames':mp.nnames,'hnGroup':mp.hnGroup,'hLinks':mp.hLinks,'hDir':mp.hDir,'hnCov':hnCov,'nameList':chrList['nameList'],'lenList':chrList['lenList'],'asm':asmList,
         'genePos':mp.ndGenePos,'geneVec':mp.geneVec,'layerVec':mp.layerVec,'strand':mp.strandVec,'mgFlagVec':mp.mgFlagVec,'figScale':mp.figScale,'tickValue':mp.tickValue,'tickPos':mp.tickPos,'ndExonPos':mp.ndExonPos,'rnaVec':mp.rnaVec,
