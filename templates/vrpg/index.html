@@ -1509,7 +1509,7 @@
                     alnHtml += "</tbody></table>";
                     $('#seqAlign').html(alnHtml);
                 }else{
-                    let alnHtml = '<table class="table">';
+                    let alnHtml = '<h5>Path information <button id="dwPh" class="btn btn-link">[Download]</button></h5><table class="table">';
                     alnHtml += "<thead><tr><th>#qChr</th><th>qStart</th><th>qEnd</th><th>qPath</th></tr></thead><tbody>";
                     for(let i = 0; i < data.qChr.length; i++){
                         alnHtml += `<tr><td>${data.qChr[i]}</td><td>${data.qStart[i]+1}</td><td>${data.qEnd[i]+1}</td><td>${data.qPath[i]}</td></tr>`;
