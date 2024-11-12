@@ -370,7 +370,7 @@ private:
     // read indexed node data
     void getExNode(int chrNum,int sStart,int sEnd,int ex,std::vector<NodeType> &rangeNode,std::unordered_map<NodeType,char> &exNode,std::unordered_map<NodeType,LenAsm> &info,int &realLen,int &realStart);
     // read index path dada
-    void queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::vector<std::vector<char> > &oriMulti,std::vector<std::vector<int> > &nodeMulti,std::vector<std::vector<int> > &qPosMulti,std::vector<std::string> &cigarMulti,std::vector<std::string> &nameMulti);    
+    void queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::vector<std::vector<char> > &oriMulti,std::vector<std::vector<int> > &nodeMulti,std::vector<std::vector<int> > &qPosMulti,std::vector<std::string> &cigarMulti,std::vector<int> &pNumMulti);    
     
     void dxAsmNode(bool refSim,int asmNum,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);    
     void dxAsmNode2(bool refSim,std::vector<int> &asmVec,int chrNum,int sStart,int sEnd,std::unordered_map<NodeType,LenAsm> &info,std::map<NEdge,int> &r_edge_dict,std::unordered_map<NodeType,Nid> &nid_dict);
