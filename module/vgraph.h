@@ -253,6 +253,15 @@ typedef struct{
     int pend;
 } RanPos;
 
+typedef struct{
+    int pnum;
+    int start;
+    int end;
+    int loc;
+} PathPos;
+
+bool numSort(PathPos &a, PathPos &b);
+
 std::string getSep(std::string &sepFile);
 
 class GraphRange{
