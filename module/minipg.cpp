@@ -36,6 +36,25 @@ string getSep(string &sepFile){
     return sep;
 }
 
+bool numSort(PathPos &a, PathPos &b){
+    if(a.pnum < b.pnum){
+        return true;
+    }
+    if(a.pnum > b.pnum){
+        return false;
+    }
+    if(a.start < b.start){
+        return true;
+    }
+    if(a.start > b.start){
+        return false;
+    }
+    if(a.end > b.end){
+        return true;
+    }
+    return false;
+}
+
 GraphRange::GraphRange(string &t_upDir,int index):upDir(t_upDir),indexFlag(index){
     
     asmFile = upDir + "/asm.list";
@@ -1144,7 +1163,7 @@ void GraphRange::getExNode(int chrNum,int sStart,int sEnd,int ex,vector<NodeType
 
 }
 
-void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEnd,unordered_map<NodeType,LenAsm> &info,vector<vector<char> > &oriMulti,vector<vector<int> > &nodeMulti,vector<vector<int> > &qPosMulti, vector<string> &cigarMulti,vector<string> &nameMulti){
+void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEnd,unordered_map<NodeType,LenAsm> &info,vector<vector<char> > &oriMulti,vector<vector<int> > &nodeMulti,vector<vector<int> > &qPosMulti, vector<string> &cigarMulti,vector<int> &pNumMulti){
     string bPathFile = pathDir + "/" + to_string(asmNum) + ".path.bw";
     string dxPathFile = pathDir + "/" + to_string(asmNum) + ".path.bdx";    
     
@@ -1221,23 +1240,11 @@ void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEn
         vector<char> oriVec;
         vector<int> ndVec;
         //
-        string nameFile = pathDir + "/" + to_string(asmNum) + ".name";
-        ifstream mfh(nameFile);
-        if(! mfh){
-            cerr<<"Error: file open failed. "<<nameFile<<endl;
-            exit(1);
-        }
         vector<int> qPosVec;
         string cigarStr = "";
-        string nameLine;
-        vector<string> allName;
-        while(getline(mfh,nameLine)){
-            allName.push_back(nameLine);  
-        }
-        string firName = "";
-        mfh.close();
+        //string firName = "";
+	int firNum = 0;
         //
-       
         if(formR){
             while(1){
                 int pathNum;
@@ -1257,14 +1264,16 @@ void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEn
                         qPosMulti.push_back(qPosVec);
                         cigarMulti.push_back(cigarStr);
                         //
-                        nameMulti.push_back(firName);
+                        //nameMulti.push_back(firName);
+			pNumMulti.push_back(firNum);
 
                         oriVec.clear();
                         ndVec.clear();
                         qPosVec.clear();
                         cigarStr = "";
                     }
-                    firName = allName[pathNum];
+                    //firName = allName[pathNum];
+		    firNum = pathNum;
                 }else{
                     if(firOri == '1'){
                         firOri = '>';
@@ -1316,7 +1325,8 @@ void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEn
                 qPosMulti.push_back(qPosVec);
                 cigarMulti.push_back(cigarStr);
                 //
-                nameMulti.push_back(firName);
+                //nameMulti.push_back(firName);
+		pNumMulti.push_back(firNum);
 
                 oriVec.clear();
                 ndVec.clear();
@@ -1340,14 +1350,16 @@ void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEn
                         nodeMulti.push_back(ndVec);
                         qPosMulti.push_back(qPosVec);
                         //
-                        nameMulti.push_back(firName);
+                        //nameMulti.push_back(firName);
+			pNumMulti.push_back(firNum);
 
                         oriVec.clear();
                         ndVec.clear();
                         qPosVec.clear();
                     }
                     //
-                    firName = allName[pathNum];
+                    //firName = allName[pathNum];
+		    firNum = pathNum;
                 }else{
                     if(firOri == '1'){
                         firOri = '>';
@@ -1395,7 +1407,8 @@ void GraphRange::queryDbPath(bool formR,int asmNum,int chrNum,int sStart,int sEn
                 nodeMulti.push_back(ndVec);
                 qPosMulti.push_back(qPosVec);
                 //
-                nameMulti.push_back(firName);
+                //nameMulti.push_back(firName);
+		pNumMulti.push_back(firNum);
 
                 oriVec.clear();
                 ndVec.clear();
@@ -1417,7 +1430,8 @@ void GraphRange::dxAsmNode(bool refSim,int asmNum,int chrNum,int sStart,int sEnd
     //
     vector<vector<int> > qPosMulti;
     vector<string> cigarMulti;
-    vector<string> nameMulti;
+    //vector<string> nameMulti;
+    vector<int> pNumMulti;
     
     bool formR = true;
     string formFile = upDir + "/form.info";
@@ -1425,19 +1439,118 @@ void GraphRange::dxAsmNode(bool refSim,int asmNum,int chrNum,int sStart,int sEnd
         formR = false;
     }
     
-    queryDbPath(formR,asmNum,chrNum,sStart,sEnd,info,oriMulti,nodeMulti,qPosMulti,cigarMulti,nameMulti);
+    queryDbPath(formR,asmNum,chrNum,sStart,sEnd,info,oriMulti,nodeMulti,qPosMulti,cigarMulti,pNumMulti);
     unordered_set<int> ndGroup;
     //
     bool visCigar = true;
-    if(formR){
-        for(size_t i =0; i < oriMulti.size(); ++i){
-            eAsmFind(visCigar,refSim,oriMulti[i],nodeMulti[i],qPosMulti[i],cigarMulti[i],nameMulti[i],r_edge_dict,nid_dict,ndGroup);
+    //
+    int pCount = pNumMulti.size();
+    //
+    if(pCount > 0){
+        string nameFile = pathDir + "/" + to_string(asmNum) + ".name";
+        ifstream mfh(nameFile);
+        if(! mfh){
+            cerr<<"Error: file open failed. "<<nameFile<<endl;
+            exit(1);
         }
-    }else{
-        string rgCigar = "*";
-        for(size_t i =0; i < oriMulti.size(); ++i){
-            eAsmFind(visCigar,refSim,oriMulti[i],nodeMulti[i],qPosMulti[i],rgCigar,nameMulti[i],r_edge_dict,nid_dict,ndGroup);
+        string nameLine;
+        vector<string> allName;
+        while(getline(mfh,nameLine)){
+            allName.push_back(nameLine);  
         }
+        mfh.close();
+        //
+        vector<PathPos> pathPiece;
+        pathPiece.reserve(pCount);
+        for(int i = 0; i < pCount; ++i){
+            PathPos tpos = {pNumMulti[i],qPosMulti[i].front(),qPosMulti[i].back(),i};
+            pathPiece.push_back(tpos);
+        }
+        sort(pathPiece.begin(),pathPiece.end(),numSort);
+
+        int preSeg = -1,preEnd = 0;
+        //
+        vector<char> oriVec;
+        vector<int> nodeVec;
+        vector<int> qPosVec;
+        string tCigar = "*";
+        string tName = "";
+        //string rgCigar = "*";
+        for(auto &tseg : pathPiece){
+            if(tseg.pnum == preSeg){
+                if(tseg.start <= preEnd){
+                    if(tseg.end <= preEnd){
+                        //do nothing
+                        
+                    }else{
+                        // overhang
+                        int n = qPosVec.size();
+                        int i = n - 1;
+                        for(; i >= 0; --i){  
+                            if(qPosVec[i] == tseg.start){
+                                break;
+                            }
+                        }
+                        //
+                        int ns = n - i;
+                        int m = qPosMulti[tseg.loc].size();
+                        for(int j = ns; j < m; ++j){
+                            qPosVec.push_back(qPosMulti[tseg.loc][j]);
+                            oriVec.push_back(oriMulti[tseg.loc][j]);
+                            nodeVec.push_back(nodeMulti[tseg.loc][j]);
+                        }
+                        if(formR){
+                            int k = 0;
+                            int p = 0;
+                            for(auto x : cigarMulti[tseg.loc]){  
+                                if(x == '>' || x == '<'){
+                                    if(k == ns){
+                                        break;
+                                    }
+                                    ++k;
+                                }
+                                ++p;
+                            }
+                            tCigar += cigarMulti[tseg.loc].substr(p);
+                        }
+                        //
+                        preEnd = tseg.end;
+                    }
+                }else{
+                    // ----------------------
+                    //merged path 
+                    eAsmFind(visCigar,refSim,oriVec,nodeVec,qPosVec,tCigar,tName,r_edge_dict,nid_dict,ndGroup);
+                    //initial
+                    oriVec.assign(oriMulti[tseg.loc].begin(),oriMulti[tseg.loc].end());
+                    nodeVec.assign(nodeMulti[tseg.loc].begin(),nodeMulti[tseg.loc].end());
+                    qPosVec.assign(qPosMulti[tseg.loc].begin(),qPosMulti[tseg.loc].end());
+                    if(formR){
+                        tCigar = cigarMulti[tseg.loc];
+                    }
+                    //
+                    preEnd = tseg.end;
+                }
+            }else{
+                if(preSeg >= 0){
+                    // ----------------------
+                    eAsmFind(visCigar,refSim,oriVec,nodeVec,qPosVec,tCigar,tName,r_edge_dict,nid_dict,ndGroup);
+                }
+                //initial
+                tName = allName[tseg.pnum];
+                oriVec.assign(oriMulti[tseg.loc].begin(),oriMulti[tseg.loc].end());
+                nodeVec.assign(nodeMulti[tseg.loc].begin(),nodeMulti[tseg.loc].end());
+                qPosVec.assign(qPosMulti[tseg.loc].begin(),qPosMulti[tseg.loc].end());
+                if(formR){
+                    tCigar = cigarMulti[tseg.loc];
+                }
+                //
+                preEnd = tseg.end;
+            }
+            preSeg = tseg.pnum;
+        }
+        // ----------------------
+        // last
+        eAsmFind(visCigar,refSim,oriVec,nodeVec,qPosVec,tCigar,tName,r_edge_dict,nid_dict,ndGroup);
     }
 }
 //----------------------------------
@@ -1453,14 +1566,15 @@ void GraphRange::dxAsmNode2(bool refSim,vector<int> &asmVec,int chrNum,int sStar
         //
         vector<vector<int> > qPosMulti;
         vector<string> cigarMulti;
-        vector<string> nameMulti;
+        //vector<string> nameMulti;
+	vector<int> pNumMulti;
         
         bool formR = true;
         string formFile = upDir + "/form.info";
         if(access(formFile.c_str(),F_OK) == 0){
             formR = false;
         }
-        queryDbPath(formR,asmNum,chrNum,sStart,sEnd,info,oriMulti,nodeMulti,qPosMulti,cigarMulti,nameMulti);
+        queryDbPath(formR,asmNum,chrNum,sStart,sEnd,info,oriMulti,nodeMulti,qPosMulti,cigarMulti,pNumMulti);
         unordered_set<int> ndGroup;
         for(size_t i =0; i < oriMulti.size(); ++i){
             eAsmFind2(refSim,asmCode,oriMulti[i],nodeMulti[i],nid_dict,ndGroup,h_edge_dict);
