@@ -1,5 +1,5 @@
 # VRPG
-an interactive web viewer for reference-projected pangenome graph
+an interactive visualization and interpretation framework of reference-projected pangenome graphs
 
 |  |  |
 | --- | --- |
@@ -14,7 +14,7 @@ For detailed information about VRPG functionalities, please read the documentati
 
 # Citation 
 
-Zepu Miao, Jia-Xing Yue*. VRPG: an interactive visualization framework for reference-projected pangenome graph. BioRxiv (2024). https://www.biorxiv.org/content/10.1101/2023.01.20.524991v3
+https://www.biorxiv.org/content/10.1101/2023.01.20.524991v3
 
 # Installation  
 Python3 (>=3.6) and pip environment are required.  
