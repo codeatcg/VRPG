@@ -10,7 +10,11 @@ an interactive web viewer for reference-projected pangenome graph
 
 VRPG is an open-source web application for fast access and interactive analysis of pangenome regions. Both <a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a> and <a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a> pangenome graphs are supported. VRPG implements a block index system to support navigating the large and complex pangenomes created based on hundreds of whole genome assemblies, fluently. VRPG layouts the graph with maintaining the linearity of the primary reference. This makes VRPG capable of connecting the abundant genome annotation data based on the coordinate system of the primary linear reference to the graph. VRPG provides plenty of functions to help users to explore and understand the pangenome graph interactively, such as highlighting one or multiple assembly paths in the graph, finding the node depth, searching a sequence, simplifying the pangenome graph. We also provide an example website at https://www.evomicslab.org/app/vrpg/. Through the example website users can quickly access most of regions of the human pangenomes created by <a href="https://humanpangenome.org/">HPRC</a> based on 90 assemblies and the saccharomyces cerevisiae pangenome created by <a href="https://www.evomicslab.org/">Evomics Lab</a> based on 163 assemblies.
 
-For detailed information about VRPG functions, please read the document at https://evomicslab.org/app/vrpg/manual/.
+For detailed information about VRPG functionalities, please read the documentation at https://evomicslab.org/app/vrpg/manual/.
+
+# Citation 
+
+Zepu Miao, Jia-Xing Yue*. VRPG: an interactive visualization framework for reference-projected pangenome graph. BioRxiv (2024). https://www.biorxiv.org/content/10.1101/2023.01.20.524991v3
 
 # Installation  
 Python3 (>=3.6) and pip environment are required.  
@@ -105,7 +109,7 @@ If only a particular set of reference chromosomes or contigs are considered to v
 
 ## Annotation
 
-Overlapping annotation items are placed on separate layers. For gene annotation track the maximum number of layers allowed by VRPG is 255. For each track defined in a [BED](https://asia.ensembl.org/info/website/upload/bed.html) file the maximum number of layers allowed by VRPG is 50 by default, which can be overridden by using option ‘--layer’. Note: for track with 'score' column (total number of columns > 3) defined in a BED file, all the annotation items (including overlapping ones) will be placed on the same layer. To separate the overlapping items, please define the track with 3 columns. Currently, VRPG can utilize at most the first 6 columns of a track defined in a BED file and other columns will be ignored.
+Overlapping annotation items are placed on separate layers. For gene annotation track the maximum number of layers and RNA isoforms per gene allowed by VRPG are 255 and 20 (can be overridden by '--rnaMax') separately. For each track defined in a [BED](https://asia.ensembl.org/info/website/upload/bed.html) file the maximum number of layers allowed by VRPG is 50 by default, which can be overridden by using option ‘--layer’. Note: for track with 'score' column (total number of columns > 3) defined in a BED file, all the annotation items (including overlapping ones) will be placed on the same layer. To separate the overlapping items, please define the track with 3 columns. Currently, VRPG can utilize at most the first 6 columns of a track defined in a BED file and other columns will be ignored.
 
 ```
 # Add primary reference gene track from GFF file
@@ -178,9 +182,7 @@ Enter the directory [test](https://github.com/codeatcg/VRPG/tree/main/test) and 
 bedtools intersect -wa -wb -a node.pos -b genome.gff3
 ``` 
   
-# More about this work 
 
-https://www.biorxiv.org/content/10.1101/2023.01.20.524991v3
 
 
  
