@@ -81,7 +81,7 @@ void chrNameTrans(char *chrMapFile,map<string,string> &transMap){
 /*
     Output: The value in last column is 0 for gene and non zero for exon or CDS. 
 */
-void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
+void reduceGFF(int rnaMax,char *inGFF,char *chrMapFile,string &outFile){
     igzstream in(inGFF);
     if(! in){
         cerr<<"Error: file open failed. "<<inGFF<<endl;
@@ -118,6 +118,7 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
     int gStart = 0,gEnd = 0;
     map<string,int> rnaCtmap;
     // no exon or no CDS
+    int rnaCount = 0;
     while(getline(in,line)){
         if(line[0] != '#' && line[0] != '\0'){
             sregex_token_iterator pos(line.begin(),line.end(),pat0,-1);
@@ -200,6 +201,7 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                 emap.clear();
                 cmap.clear();
                 rParent.clear();
+                rnaCount = 0;
                 //
                 if(start < 1 || end < 1){
                     cerr<<"Error: failed to get feature position. "<<line<<endl;
@@ -253,10 +255,13 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                     if(regex_search(attr,s,pat4)){
                         parent = s[1];
                         if(emap.find(parent) == emap.end()){
-                            vector<GeneInfo> tg;
-                            tg.push_back({start,end,parent,"E",strand[0]});
-                            emap.emplace(parent,tg);
-                            rParent.push_back(parent);
+                            if(rnaCount < rnaMax){
+                                vector<GeneInfo> tg;
+                                tg.push_back({start,end,parent,"E",strand[0]});
+                                emap.emplace(parent,tg);
+                                rParent.push_back(parent);
+                                ++rnaCount;
+                            }
                         }else{
                             emap[parent].push_back({start,end,parent,"E",strand[0]});
                         }
@@ -278,11 +283,19 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
                     if(regex_search(attr,s,pat4)){
                         parent = s[1];
                         if(cmap.find(parent) == cmap.end()){
-                            vector<GeneInfo> tg;
-                            tg.push_back({start,end,parent,"C",strand[0]});
-                            cmap.emplace(parent,tg);
                             if(emap.find(parent) == emap.end()){
-                                rParent.push_back(parent);
+                                if(rnaCount < rnaMax){
+                                    vector<GeneInfo> tg;
+                                    tg.push_back({start,end,parent,"C",strand[0]});
+                                    cmap.emplace(parent,tg);
+                                    //
+                                    rParent.push_back(parent);
+                                    ++rnaCount;
+                                }
+                            }else{
+                                vector<GeneInfo> tg;
+                                tg.push_back({start,end,parent,"C",strand[0]});
+                                cmap.emplace(parent,tg);
                             }
                         }else{
                             cmap[parent].push_back({start,end,parent,"C",strand[0]});
@@ -342,7 +355,7 @@ void reduceGFF(char *inGFF,char *chrMapFile,string &outFile){
         bool overlap = false;
         vector<int> layVec;        
         for(size_t k = 0; k < chrGene.size(); ++k){
-            // Is current gene has a overlap with previous genes ?
+            // Does current gene overlaps with previous genes ?
             // no overlap; new start
             vector<int> layerSta(maxLayer,0);
             overlap = false;
@@ -781,7 +794,7 @@ void indexNodeGene(string &rndFile,string &rndDxFile,string &geneFile,string &ch
 }
 
 //outDir
-void dxRefNodeGene(char *inGFF,char *chrMapFile,string &upDir){
+void dxRefNodeGene(int rnaMax,char *inGFF,char *chrMapFile,string &upDir){
     
     string geneFile = upDir + "/simplify.gene";
     string rndFile = upDir + "/node.ref.bw";
@@ -793,7 +806,7 @@ void dxRefNodeGene(char *inGFF,char *chrMapFile,string &upDir){
     string chrListFile = upDir + "/chr.list";
     
     //if(access(geneFile.c_str(),F_OK) != 0){
-        reduceGFF(inGFF,chrMapFile,geneFile);
+        reduceGFF(rnaMax,inGFF,chrMapFile,geneFile);
     //}
     indexNodeGene(rndFile,rndDxFile,geneFile,chrListFile,ovFile,gDxFile);
 }
@@ -806,13 +819,14 @@ void addRef_usage(){
     cout<<"--chrTrans    <File>    Input file containing two columns separated by whitespaces for each line (chromosome/contig name in GFF file and chromosome/contig name in Graph file)."
                                    "This file is used to make the chromosome/contig names in GFF file matching that in graph file."
                                    "If chromosome name transformation is not needed this file can be ignored."<<endl;                                  
-    
+    cout<<"--rnaMax      <INT>     Maximum number of RNA isoforms per gene to display. By default: 20."<<endl;
     cout<<"--upDir       <Dir>     'upload' directory which including files generated by 'gfa2view' or 'vrpg_preprocess.py'."<<endl;
 }
 
 int addRef_main(int argc,char **argv){
     string upDir = "";
     char *inGFF = nullptr,*chrMapFile = nullptr;
+    int rnaMax = 20;
     if(argc == 1){
         addRef_usage();
         return 1;
@@ -825,6 +839,13 @@ int addRef_main(int argc,char **argv){
                 return 1;
             }
             inGFF = argv[i];
+        }else if(strcmp(argv[i],"--rnaMax") == 0 || strcmp(argv[i],"-rnaMax") == 0){
+            ++i;
+            if(i == argc){
+                cerr<<"Error: --rnaMax is used but there is no value."<<endl;
+                return 1;
+            }
+            rnaMax = atoi(argv[i]);
         }else if(strcmp(argv[i],"--upDir") == 0 || strcmp(argv[i],"-upDir") == 0){
             ++i;
             if(i == argc){
@@ -849,7 +870,7 @@ int addRef_main(int argc,char **argv){
         }
     }
     //
-    dxRefNodeGene(inGFF,chrMapFile,upDir);
+    dxRefNodeGene(rnaMax,inGFF,chrMapFile,upDir);
     return 0;
 }
 
