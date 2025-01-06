@@ -112,7 +112,7 @@ sh prepare.gff.sh
 8. Move the prepared data to VRPG's upload directory for rendering   
 
 ```
-# If default graph has been determined (see step 7 when only having assemblies but not a pre-existing pangenome graph) this graph will be optional to display
+# If a default graph has been determined (see step 7 when only having assemblies but not a pre-existing pangenome graph), this graph will be the additional graph to display.
 mv rGFA_upload/upload ../upload/rGFA_graph
 ```
 
