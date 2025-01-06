@@ -1,5 +1,5 @@
 # VRPG
-an interactive visualization and interpretation framework of reference-projected pangenome graphs
+An interactive visualization and interpretation framework of reference-projected pangenome graphs  
 
 |  |  |
 | --- | --- |
@@ -8,35 +8,40 @@ an interactive visualization and interpretation framework of reference-projected
 
 # Description  
 
-VRPG is an open-source web application for fast access and interactive analysis of pangenome regions. Both <a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a> and <a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a> pangenome graphs are supported. VRPG implements a block index system to support navigating the large and complex pangenomes created based on hundreds of whole genome assemblies, fluently. VRPG layouts the graph with maintaining the linearity of the primary reference. This makes VRPG capable of connecting the abundant genome annotation data based on the coordinate system of the primary linear reference to the graph. VRPG provides plenty of functions to help users to explore and understand the pangenome graph interactively, such as highlighting one or multiple assembly paths in the graph, finding the node depth, searching a sequence, simplifying the pangenome graph. We also provide an example website at https://www.evomicslab.org/app/vrpg/. Through the example website users can quickly access most of regions of the human pangenomes created by <a href="https://humanpangenome.org/">HPRC</a> based on 90 assemblies and the saccharomyces cerevisiae pangenome created by <a href="https://www.evomicslab.org/">Evomics Lab</a> based on 163 assemblies.
+VRPG is a web-based interactive Visualization and interpretation framework for linear-Reference-projected Pangenome Graphs. VRPG provides efficient and intuitive supports for exploring and annotating pangenome graphs along a linear-genome-based coordinate system (e.g., that of a primary linear reference genome). Moreover, VRPG offers many unique features such as in-graph path highlighting for graph-constituent input assemblies, copy number characterization for graph-embedding nodes, graph-based mapping for query sequences, all of which are highly valuable for researchers working with pangenome graphs. Additionally, VRPG enables side-by-side visualization between the graph-based pangenome representation and the conventional primary-linear-reference-genome-based feature annotations, therefore seamlessly bridging the graph and linear genomic contexts.
 
-For detailed information about VRPG functionalities, please read the documentation at https://evomicslab.org/app/vrpg/manual/.
+Pangenome graphs encoded in both <a href="https://github.com/lh3/gfatools/blob/master/doc/rGFA.md">rGFA</a> and <a href="https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md">GFAv1</a> formats are supported. 
+
+To further demonstrate its functionality and scalability, we provide a demonstration website for VRPG at https://evomicslab.org/app/vrpg/ to showcase its capacity and functionality with the cutting-edge yeast and human reference pangenome graphs derived from hundreds of high-quality genome assemblies.
+
+For more details regarding VRPG's functionalities and usage, please check out the documentation at https://evomicslab.org/app/vrpg/manual/.
+
 
 # Citation 
 
-https://www.biorxiv.org/content/10.1101/2023.01.20.524991v3
+Zepu Miao, Jia-Xing Yue*. (2024) Interactive visualization and interpretation of pangenome graphs by linear-reference-based coordinate projection and annotation integration.(revised; BioRxiv preprint: https://www.biorxiv.org/content/10.1101/2023.01.20.524991)
 
 # Installation  
-Python3 (>=3.6) and pip environment are required.  
+Dependencies:  
+`git`, `wget`, `bash`, `gcc/g++ >= 4.9`, `make`, `python3 (>=3.6)`, `pip`, `zlib`, `zlib-devel`  
 
 ```
 # For installing a historical version please access https://github.com/codeatcg/VRPG/releases and download the source code.
 
-# install the latest version
-# zlib
-# gcc >= 4.9
+# To install a historical version of VRPG, please access https://github.com/codeatcg/VRPG/releases and download the source code.
+# To install the latest version of VRPG, please type
 pip install Django==3.2.4  pybind11
 git clone https://github.com/codeatcg/VRPG --recursive  
 cd VRPG/module
 make
 
-# By default the javascript packages that VRPG depends on are loaded from CDN. Users can also host the packages locally. 
+# By default, the javascript packages that VRPG depends on are loaded from CDN. Users can optionally host these packages locally by typing: 
 python create.local.py
 sh host.jslib.local.sh local
-# switch to load packages from CDN
+# In case that users want to switch back to loading packages from CDN, type:
 sh host.jslib.local.sh cdn
 
-# install the dependence for sequence-to-graph mapping
+# To install the dependence (minigraph) for sequence-to-graph mapping, type:
 cd VRPG
 mkdir bin
 cd bin
@@ -46,103 +51,122 @@ mv minigraph-0.20_x64-linux/minigraph ./
 
 ```
 
-# Prepare your data  
+# Input data preparation 
 
-The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. But it's a little looser in VRPG. It's not required that the haplotype name must be numeric, characters are also allowed. When indexing the graph users can define the search depth (VRPG version > 0.1.2) by option ‘--xDep’. A small value for this option may cause some big bubbles on the rendered graph uncompleted. Owing to the linearity of the primary reference genome on graph rendered by VRPG the uncompleted bubble and its approximate location relative to the primary reference genome can still be recognized generally. In practice, users can set the value to 100.
+The naming scheme of assembly should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming specification</a>. Briefly, the assembly's name consists of sample name, delimiter, and haplotype name, e.g., sampleA#0. The haplotype name can be numeric (e.g. '0', '1', or '2') or characters (e.g., 'collapsed' or 'phased') or both (e.g., 'h1' or 'h2').  
 
-## rGFA format graph  
+When indexing the pangenome graphs, users can set the hard limit for maximal search depth  via the option ‘--xDep’ (for VRPG versions >=0.1.3). The default value for this option is 100. Setting this value too small may cause incomplete graph traversing for large bubbles.  
 
-### Pangenome graph already exists  
+## For rGFA-formatted pangenome graphs  
 
-The assemblies to graph mapping files are required. If these files do not exist the assembly can't be highlighted in the graph. These files can be generated by minigraph by using command '-cxasm --vc'. Then run the following command to get files required by VRPG.  
+### When already having the rGFA-formatted graph file  
+
+Just type the following command to feed the graph file to VRPG: 
+
+```
+Python script/vrpg_preprocess.py --rGFA all.gfa --outDir out_folder --index --xDep 100
+```
+
+That said, if users want to use VRPG's assembly-to-path highlighting function, additional assembly-to-graph mapping files (in the GAF format) are needed, which can be generated by minigraph using the command '-cxasm --vc' (see [TEST_README.md](https://github.com/codeatcg/VRPG/blob/main/test/TEST_README.md) for more details). Once this is done, prepare a tab-delimited gaf_file.list file formatted as follows:
+
+```
+sample1#H1	sample1.H1.gaf  
+sample2#0	sample2.0.gaf  
+sample3#1	sample3.1.gaf  
+sample3#2	sample3.2.gaf  
+```
+
+Then run the following command to prepare all the input information for VRPG.  
 
 ```
 Python script/vrpg_preprocess.py --rGFA all.gfa --gafList gaf_file.list --outDir out_folder --index --xDep 100
 ```
 
-#### gaf_file.list file is formatted as follows: 
 
-sample1#H1	sample1.H1.gaf  
-sample2#0	sample2.0.gaf  
-sample3#1	sample3.1.gaf  
-sample3#2	sample3.2.gaf  
+### When not having the rGFA-formatted graph file
 
-### Pangenome graph not exists  
-
-Run the following command to create pangenome graph and generate files required by VRPG.  
+First prepare a tab-delimited asm_file.list file formatted as follows:
 
 ```
-Python script/vrpg_preprocess.py –-minigraph '/software/minigraph' --assList ass_file.list –-outDir out_folder --index --xDep 100
-```
-
-#### ass_file.list file is formatted as follows:  
 sample1#H1	sample1.H1.fa  
 sample2#0	sample2.0.fa  
 sample3#1	sample3.1.fa  
 sample3#2	sample3.2.fa  
+```
+**Note**: The assembly defined on the first line in this file will be used as the primary linear reference genome for rGFA graph construction.
 
-**Note**, '/software/minigraph' represents the absolute path of minigraph executable file. Assembly in first line in file ass_file.list will be taken as reference.  
+Then run the following command to create the rGFA-formatted pangenome graph and to generate all needed files for VRPG.  
 
-## GFA format graph
+```
+Python script/vrpg_preprocess.py –-minigraph '/software/minigraph' --asmList asm_file.list –-outDir out_folder --index --xDep 100
+``` 
 
-For graphs in GFA format that can be processed by VRPG segment names should be numeric. Fortunately, graphs generated by Minigraph-Cactus and PGGB have this feature. If the segment names are not numeric users need to modify the graph first. Also notice that all path names in the graph should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming pattern</a>. If the path names don’t obey the rule the graph needs to be modified. This can be avoided by using proper assembly names before constructing the graph. If the graph satisfied the conditions described above run the following command to get files required by VRPG.  
+**Note**: Here '/software/minigraph' represents the absolute path of the minigraph executable file.   
+
+## For GFAv1-formatted pangenome graphs
+
+For graphs encoded in GFAv1 format, VRPG requires its node (i.e., segment) name to be numeric. Graphs generated by Minigraph-Cactus and PGGB both satisfy this requirement. When dealing with a pangenome graph file of which the node/segment names are not numeric, users need to modify the graph first. Also notice that all path names defined in the graph should follow <a href="https://github.com/pangenome/PanSN-spec">PanSN prefix naming specification</a>. This requirement can be met by using proper assembly names before constructing the graph. Once these checks are all passed, run the following command to prepare the graph for VRPG:
+
 
 ```
 module/gfa2view --GFA in.gfa --ref refName --outDir output_dir --index --xDep 100 --range 2000 --thread 10
+```
 
-# gfa2view is flexible. Users can also split the process into two steps.
-# step 1: transform and calculate coverage
-# This step can’t be paralleled.
+**Note**: The gfa2view step can be further divided into two steps when needed. This can be useful for testing different indexing parameters, but note that the index files generated in the new run will automatically overwrite the old ones. To run the gfa2view step in two steps, type:
+```
+# Step 1: format conversion and assembly-to-graph mapping depth calculation. This step can’t be paralleled.
+
 module/gfa2view --GFA in.gfa --ref refName --outDir output_dir
 
-# step 2: index
-# This step can be paralleled.
+# Step 2: graph indexing. This step can be parallelized.
+
 module/gfa2view --outDir output_dir --index --xDep 100 --range 2000 --thread 10
 
 ```
 
-By two steps users can test different options and parameters to index the graph, while avoiding to transform the graph repetitively. But note that the previous indexing results will be covered.
+**Note**: For now, the memory consumption of 'gfa2view' is proportional to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
 
-**Note**, For the current version of 'gfa2view' memory consumption is proportional to number of threads. A trade-off between speed and and memory consumption needs to be considered.  
+**Note**: For a primary linear reference genome with many small contigs (that will not be used in graph visualization), it is recommended to specify the '--refChr' option for 'gfa2view' to let VRPG only consider major chromosomes/contigs for graph indexing. This will help to substantially reduce the graph indexing time. For this option, a text file containing the names of the specified chromosomes/contigs (one line per chromosome/contig name) is needed. 
 
-If only a particular set of reference chromosomes or contigs are considered to visualize the option ‘--refChr’ can be used to save running time. The option only affects the process of indexing. If this option is specified, a file containing the expected chromosomes/contigs with one chromosome/contig per line is required. For primary linear reference with too many small contigs, it's suggested to specify the option '--refChr'.
 
-## Annotation
+## Annotation tracks
 
-Overlapping annotation items are placed on separate layers. For gene annotation track the maximum number of layers and RNA isoforms per gene allowed by VRPG are 255 and 20 (can be overridden by '--rnaMax') separately. For each track defined in a [BED](https://asia.ensembl.org/info/website/upload/bed.html) file the maximum number of layers allowed by VRPG is 50 by default, which can be overridden by using option ‘--layer’. Note: for track with 'score' column (total number of columns > 3) defined in a BED file, all the annotation items (including overlapping ones) will be placed on the same layer. To separate the overlapping items, please define the track with 3 columns. Currently, VRPG can utilize at most the first 6 columns of a track defined in a BED file and other columns will be ignored.
+A unique feature of VRPG lies in its native support for a side-by-side visualization between the pangenome graph and multiple annotation tracks based on the same primary linear reference coordinate system. For now, VRPG accepts annotation tracks defined in GFF3 and BED formats.
 
-```
-# Add primary reference gene track from GFF file
-# The GFF file must correspond to the primary reference
-# run 'GraphAnno addRef --help' for help 
-GraphAnno addRef --inGFF gffFile --chrTrans chrTransFile --upDir upload
+For the gene annotation track defined in GFF3 format, the maximal number of tiled layers (i.e., overlapped genes) to display is 255 and the maximal number of RNA isoforms per gene to display is 20 by default, which can be further adjusted using the '--rnaMax' option with the 'GraphAnno' command in VRPG. 
 
-# Add annotation track from BED file
-# About the BED format, please refer to https://asia.ensembl.org/info/website/upload/bed.html
-# Track line is needed for adding annotation track
-GraphAnno addBed --inBed track.bed --upDir upload
+For other annotation tracks defined in the BED format, different tracks are specified via the track line notation defined in the [BED](https://asia.ensembl.org/info/website/upload/bed.html) file. The maximal number of tiled layers to display is 50 by default, which can be further adjusted using the ‘--layer’ option with the 'GraphAnno' command in VRPG. When the 5th column (i.e., score) of the BED file is defined, VRPG will assume this annotation track is score-based and render all records on the same layer. Otherwise, VRPG will try to separate overlapping records from the same track into different layers.   
 
-# Add annotation for all nodes (reference and non-reference). By clicking on the node the genes that the node overlaps with will be showed in the 'Node information' viewport. 
-# run 'GraphAnno nodeGene --help' for help
-GraphAnno nodeGene --gffList gffListFile --upDir upload
 
 ```
+# To add the gene annotation track based on the GFF3 file (based on the primary linear reference)
+# run 'GraphAnno addRef --help' for more help information 
+module/GraphAnno addRef --inGFF gffFile --chrTrans chrTransFile --upDir upload
 
-## Node sequence
+# To add other annotation tracks from BED files 
+module/GraphAnno addBed --inBed track.bed --upDir upload
 
-```
-# Extract node sequence and build index
-nodeSeq --gfaFile graph.gfa --upDir upload
+# To add annotation for all nodes (reference and non-reference).
+# run 'GraphAnno nodeGene --help' for more help information
+module/GraphAnno nodeGene --gffList gffListFile --upDir upload
 
 ```
 
+## Node sequence extraction
+Optionally, VRPG can be configured to report the exact genomic sequence for each node. 
+```
+# To extract the node sequences and build their index files for VRPG
+module/nodeSeq --gfaFile graph.gfa --upDir upload
 
-# Execution  
-## Local server or personal computer with Linux/Ubuntu operating system  
+```
 
-1. Move all output files in directory 'upload' generated during data preparation to the empty folder 'upload' of VRPG. If more than one pangenomes are available users can rename the results directory 'upload' generated during data preparation and then move the renamed directory into the VRPG 'upload' folder.
 
-2. Start the development server of Django  
+# Deployment 
+## For local server or personal computer running a Linux-based operating system (e.g., CentOS, Ubuntu)
+
+1. Moving all files generated in directory 'upload' during data preparation to the empty directory named 'upload'. If users want to visualize more than one pangenome graphs, please see [TEST_README.md](https://github.com/codeatcg/VRPG/blob/main/test/TEST_README.md) for more details.
+
+2. Starting the Django development server
 
 ```
 python3 manage.py runserver  
@@ -152,35 +176,31 @@ Django version 3.2.4, using settings 'primers_project.settings'
 Starting development server at http://127.0.0.1:8000/  
 ```
 
-3. Open http://127.0.0.1:8000/app/vrpg/ in your browser and visit any pangenome regions you are interested in.  
+3. Open http://127.0.0.1:8000/app/vrpg/ in your web browser to access VRPG's web portal.  
 
-**Note**, For large pangenome graph it's better to prepare data in a computing server and then transfer the data to local 'upload' folder of VRPG.
+**Note**: For large pangenome graphs, it is recommended to use a computing server for the data preparation of VRPG and then transfer the preprocessed data to the 'upload' directory of the local server or personal computer. 
 
-## Remote server  
+## For a remote server running a Linux-based operating system (e.g., CentOS, Ubuntu)
 
-If server is running on a different machine start the server by running
+1. Logging in to the remote server and start the Django development server by running
 
 ```
 python3 manage.py runserver 0.0.0.0:8000
 ```
-Please make sure the firewall is closed. Then open <a>http:\<IP of server\>:8000/app/vrpg/</a>.
+2. On a local computer, using <a>http:\<IP of the remote server\>:8000/app/vrpg/</a> to use VRPG.
 
-If you are familiar with nginx or apache you can also deploy VRPG by using any of them.
-
-
-# Test  
-Enter the directory [test](https://github.com/codeatcg/VRPG/tree/main/test) and see [TEST_README.md](https://github.com/codeatcg/VRPG/blob/main/test/TEST_README.md)
+**Note**: The port 8000 can be any port number that has not occupied by any other process and is allowed by the firewall for outside visiting. If the user is familiar with nginx or apache, VRPG can be further configured using any of them. 
 
 
-# Tips  
-1. The edge can be highlighted by clicking on it. Remove the highlight by just clicking on it again.
-2. For graphs generated by PGGB the duplicate sequence in the primary reference assembly may be collapsed. For the collapsed region new nodes and edges will be inserted (into the graph, add new L line and S line) by vrpg to make the primary reference maintain the linearity. But no nodes and edges will be inserted into the path (P line in the graph). If there are only reference nodes in a visited region and the highlighted reference path doesn’t pass these nodes the region may indicate a collapse. Another feature of these regions is that the numeric identifier of the node is generally much larger than the identifiers of the node in the flanking regions.  
+# Run VRPG with the testing example 
+Enter the directory [test](https://github.com/codeatcg/VRPG/tree/main/test) and follow the instructions from [TEST_README.md](https://github.com/codeatcg/VRPG/blob/main/test/TEST_README.md)
+
+
+# Additional Tips  
+1. For graphs generated by PGGB, the duplicate sequence in the primary linear reference assembly might have been collapsed. VRPG will re-insert shadow nodes and edges into the graph (by adding new L and S lines) to restore the linearity during graph indexing (See the associated manuscript for more technical details). When primary-linear-reference path highlighting is enabled, these inserted shadow nodes can be recognized by the fact that no highlighted path goes through them. Also, the node ID of these shadow nodes should be much larger compared with the real primary-linear-reference nodes aside to them. 
 <img src="https://github.com/codeatcg/VRPG/blob/main/static/images/ref_collapse3.png"/>
-3. VRPG uses 1-based coordinate system, i.e. coordinate is denoted as [start,end]. If you are interest in a particular segment (node) and the genome annotation file (GFF3 format) is available you can use <a href="https://bedtools.readthedocs.io/en/latest/content/tools/intersect.html">bedtools</a> and the coordinate displayed by VRPG (within Segment Source:) to find the annotation of the segment conveniently. For example:
-  
-```  
-bedtools intersect -wa -wb -a node.pos -b genome.gff3
-``` 
+
+
   
 
 
