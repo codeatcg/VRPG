@@ -26,7 +26,6 @@ Dependencies:
 `git`, `wget`, `bash`, `gcc/g++ >= 4.9`, `make`, `python3 (>=3.6)`, `pip`, `zlib`, `zlib-devel`  
 
 ```
-# For installing a historical version please access https://github.com/codeatcg/VRPG/releases and download the source code.
 
 # To install a historical version of VRPG, please access https://github.com/codeatcg/VRPG/releases and download the source code.
 # To install the latest version of VRPG, please type
