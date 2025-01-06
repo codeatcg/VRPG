@@ -1658,7 +1658,7 @@ void g2v_usage(){
     //cout<<"--ncCov              Not calculate node depth"<<endl;
     cout<<"--ncov               Disable calculating node coverage for each assembly"<<endl;
     cout<<"--index              Index the graph for rapid access"<<endl;    
-    cout<<"--xDep    <Int>      Search depth when creating graph indexes, by default: 10"<<endl;
+    cout<<"--xDep    <Int>      Search depth when creating graph indexes, by default: 100"<<endl;
     cout<<"--range   <Int>      Number of reference nodes in a chunk, which is used for indexing the graph, by default: 2000"<<endl;
     cout<<"--cross              There are crosses between reference chromosomes. It will take more running time."<<endl;
     cout<<"--thread  <Int>      Number of threads."<<endl;
@@ -1670,7 +1670,7 @@ int main(int argc,char **argv){
     char *csep = p; 
     char *gfaFile = nullptr, *outDir = nullptr, *refName = nullptr, *rfChrFile = nullptr;
     bool gIndex = false;
-    int storeDep = 10;
+    int storeDep = 100;
     int range = 2000;
     int ex = 1000000;
     int nocross = 1;
