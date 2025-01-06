@@ -1186,6 +1186,7 @@ void psAllPath(bool ncalCov,string &tmpFolder,string &asmFile,string &sepStr,int
     asmfh.close();
     if(nf > 65535){
         cerr<<"Error: too many assemblies, not supported by current version of gfa2view. "<<endl;
+        exit(1);
     }
     unsigned short int snf = (unsigned short int)nf;
     
