@@ -19,7 +19,7 @@ For more details regarding VRPG's functionalities and usage, please check out th
 
 # Citation 
 
-Zepu Miao, Jia-Xing Yue*. (2025) Interactive visualization and interpretation of pangenome graphs by linear-reference-based coordinate projection and annotation integration. Genome Research, (in press; doi: 10.1101/gr.279461.124; demonstration available at https://www.evomicslab.org/app/vrpg/; software available at https://github.com/codeatcg/VRPG) [[LINK](https://genome.cshlp.org/content/early/2025/01/13/gr.279461.124)]
+Zepu Miao, Jia-Xing Yue*. (2025) Interactive visualization and interpretation of pangenome graphs by linear-reference-based coordinate projection and annotation integration. Genome Research, 35(2):296-310. (doi: 10.1101/gr.279461.124; demonstration available at https://www.evomicslab.org/app/vrpg/; software available at https://github.com/codeatcg/VRPG) [[LINK](https://genome.cshlp.org/content/35/2/296.full)]
 
 # Installation  
 Dependencies:  
